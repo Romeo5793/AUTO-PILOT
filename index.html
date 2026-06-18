@@ -1,4 +1,617 @@
-<!-- ... existing code ... -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI AUTO-PILOT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Outfit:wght@400;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+        
+        :root {
+            --bg-dark: #020617;
+            --panel-bg: rgba(15, 23, 42, 0.6);
+        }
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: var(--bg-dark);
+            color: #f8fafc;
+            background-image: 
+                radial-gradient(circle at 20% 0%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 100%, rgba(168, 85, 247, 0.1) 0%, transparent 50%);
+            background-attachment: fixed;
+        }
+        .en-font { font-family: 'Outfit', sans-serif; }
+        .tech-font { font-family: 'Space Mono', monospace; letter-spacing: -0.05em; }
+
+        /* 特大実行ボタン */
+        .btn-zenith {
+            background: linear-gradient(135deg, #2563eb, #9333ea, #db2777);
+            background-size: 200% 200%;
+            animation: gradientShift 4s ease infinite;
+            box-shadow: 0 0 25px rgba(168, 85, 247, 0.5), inset 0 0 10px rgba(255,255,255,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .btn-zenith:hover {
+            box-shadow: 0 0 40px rgba(219, 39, 119, 0.8), inset 0 0 20px rgba(255,255,255,0.5);
+            transform: scale(1.03) translateY(-3px);
+            letter-spacing: 1px;
+        }
+        @keyframes gradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+
+        /* ガラス風パネル */
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+            border-radius: 1.5rem;
+        }
+        .portfolio-card { transition: all 0.3s ease; }
+        .portfolio-card:hover {
+            border-color: rgba(168, 85, 247, 0.4);
+            box-shadow: 0 15px 50px -10px rgba(168, 85, 247, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* シナリオの確率バー */
+        .prob-bar-bg { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.1); width: 100%; overflow: hidden; }
+        .prob-bar-fill { height: 100%; border-radius: 3px; transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .fill-bull { background: linear-gradient(90deg, #10b981, #34d399); }
+        .fill-base { background: linear-gradient(90deg, #64748b, #94a3b8); }
+        .fill-bear { background: linear-gradient(90deg, #ef4444, #f87171); }
+
+        /* タイムライン */
+        .timeline-container { border-left: 2px solid rgba(255,255,255,0.1); padding-left: 1rem; margin-left: 0.5rem; }
+        .timeline-item { position: relative; padding-bottom: 1rem; }
+        .timeline-item::before {
+            content: ''; position: absolute; left: -1.4rem; top: 0.25rem;
+            width: 10px; height: 10px; border-radius: 50%; background: #3b82f6;
+            box-shadow: 0 0 10px #3b82f6;
+        }
+        .timeline-item:last-child { padding-bottom: 0; }
+        .impact-HIGH { color: #f97316; font-weight: bold; }
+        .impact-MID { color: #eab308; }
+        .impact-LOW { color: #94a3b8; }
+
+        input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        
+        .main-tab {
+            padding: 0.75rem 1.5rem; border-bottom: 2px solid transparent; color: #64748b; font-weight: bold;
+            transition: all 0.3s; cursor: pointer; display: flex; align-items: center;
+        }
+        .main-tab.active { border-bottom-color: #a855f7; color: #fff; background: rgba(168, 85, 247, 0.1); }
+        .tab-content { display: none; }
+        .tab-content.active { display: flex; flex-direction: column; animation: fadeIn 0.5s ease forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .heat-hot { background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.5)); border-color: rgba(239,68,68,0.5); }
+        .heat-warm { background: linear-gradient(135deg, rgba(249,115,22,0.15), rgba(249,115,22,0.4)); border-color: rgba(249,115,22,0.5); }
+        .heat-cold { background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.4)); border-color: rgba(59,130,246,0.5); }
+
+        .speaking-pulse {
+            animation: speakPulse 1.5s infinite;
+        }
+        @keyframes speakPulse {
+            0% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(236, 72, 153, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0); }
+        }
+
+        .modal-overlay { background-color: rgba(2, 6, 23, 0.85); backdrop-filter: blur(10px); z-index: 50; }
+        .scan-line-modal {
+            width: 100%; height: 2px; background: linear-gradient(90deg, transparent, #a855f7, transparent);
+            position: absolute; top: 0; left: 0; animation: scan 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+        @keyframes scan { 0% { top: -10%; opacity: 0; } 50% { opacity: 1; } 100% { top: 110%; opacity: 0; } }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col relative">
+
+    <!-- パスワード（APIキー）入力画面 -->
+    <div id="auth-overlay" class="fixed inset-0 bg-[#020617] z-[100] hidden items-center justify-center p-4 backdrop-blur-xl">
+        <div class="glass-panel p-8 max-w-md w-full text-center relative overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)] border border-slate-700">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+            <div class="bg-slate-900/80 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner border border-slate-700/50">
+                <i data-lucide="key" class="w-10 h-10 text-purple-400"></i>
+            </div>
+            <h2 class="text-2xl md:text-3xl font-black text-white mb-2 tracking-tight">システム・ロック解除</h2>
+            <p class="text-sm text-slate-400 mb-8 leading-relaxed">管理者から渡された<br>「アクセスキー」を入力してください。</p>
+            <input type="password" id="api-key-input" placeholder="AIza..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-4 text-white focus:outline-none focus:border-purple-500 mb-6 font-mono text-sm shadow-inner transition-colors">
+            <button onclick="saveApiKey()" class="btn-zenith text-white font-bold py-4 px-6 rounded-xl w-full flex items-center justify-center text-lg tracking-wider">
+                <i data-lucide="unlock" class="w-5 h-5 mr-2"></i> ロックを解除する
+            </button>
+        </div>
+    </div>
+
+    <header class="p-0 border-b border-white/5 sticky top-0 z-30 bg-[#020617]/80 backdrop-blur-xl">
+        <div class="container mx-auto max-w-7xl px-4 md:px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3 group cursor-pointer">
+                <div class="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 p-2 rounded-xl shadow-[0_0_15px_rgba(168,85,247,0.4)]">
+                    <i data-lucide="infinity" class="w-6 h-6 text-white"></i>
+                </div>
+                <h1 class="text-xl md:text-2xl font-black en-font tracking-tighter text-white">
+                    AUTO-PILOT<span class="ml-2 text-sm text-purple-400 font-bold hidden sm:inline"></span>
+                </h1>
+            </div>
+            <button onclick="resetApiKey()" class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition-colors" title="キーをリセット">
+                <i data-lucide="log-out" class="w-5 h-5"></i>
+            </button>
+        </div>
+        
+        <div class="container mx-auto max-w-7xl px-4 flex border-t border-slate-800/50 overflow-x-auto no-scrollbar">
+            <div class="main-tab active whitespace-nowrap" data-tab="tab-discover" onclick="switchMainTab('tab-discover')">
+                <i data-lucide="compass" class="w-4 h-4 mr-2"></i> 新規発掘
+            </div>
+            <div class="main-tab whitespace-nowrap" data-tab="tab-myportfolio" onclick="switchMainTab('tab-myportfolio')">
+                <i data-lucide="briefcase" class="w-4 h-4 mr-2"></i> マイ・ポートフォリオ
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow container mx-auto max-w-7xl p-4 mt-4 md:mt-8 relative z-10">
+        
+        <div id="error-message" class="hidden bg-red-900/20 border border-red-500/50 text-red-200 p-4 rounded-2xl text-center mb-6 backdrop-blur-sm"></div>
+        
+        <div id="loading-panel" class="hidden flex-col items-center justify-center py-32 glass-panel mb-6 relative overflow-hidden">
+            <div class="scan-line-modal"></div>
+            <div class="relative w-32 h-32 mb-10">
+                <div class="absolute inset-0 border-[3px] border-t-purple-500 border-r-blue-500 border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+                <div class="absolute inset-3 border-[3px] border-t-transparent border-r-transparent border-b-pink-500 border-l-blue-500 rounded-full animate-[spin_2s_linear_infinite_reverse]"></div>
+                <i data-lucide="brain" class="w-10 h-10 text-white absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></i>
+            </div>
+            <h3 class="text-2xl font-black mb-4 tracking-widest text-center text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500" id="loading-title">AI多段思考プロセスを実行中...</h3>
+            <p id="loading-text" class="text-slate-400 text-sm h-6 text-center max-w-md">ステップを初期化しています...</p>
+        </div>
+
+        <div id="tab-discover" class="tab-content active gap-8">
+            
+            <div id="intro-panel" class="glass-panel p-8 py-20 relative overflow-hidden text-center flex flex-col items-center justify-center min-h-[60vh]">
+                <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+                
+                <h2 class="text-4xl md:text-5xl lg:text-6xl font-black mb-6 tracking-tight text-white leading-tight">AI市場予測エンジン</h2>
+                <p class="text-slate-400 mb-12 max-w-2xl mx-auto text-lg md:text-xl">
+                    世界中のニュースをAIが瞬時に分析し、<br class="hidden sm:block">
+                    今最も安全で利益が狙える「買い銘柄」を発掘します。
+                </p>
+                
+                <button onclick="startAutoPilotMultiStep()" class="btn-zenith text-white text-2xl font-black px-12 py-8 rounded-full inline-flex items-center justify-center w-full md:w-auto shadow-2xl">
+                    <i data-lucide="sparkles" class="w-8 h-8 mr-3"></i> 市場全体をスキャンする
+                </button>
+                <p class="mt-8 text-sm text-slate-500">※より深く分析するため2段階で思考します（約20〜30秒）</p>
+            </div>
+
+            <div id="discover-results" class="hidden flex-col gap-8 opacity-0 transition-opacity duration-1000">
+                
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <div class="lg:col-span-1 glass-panel p-6 flex flex-col items-center justify-center text-center relative overflow-hidden">
+                        <h3 class="text-xs text-slate-400 font-bold mb-4 tracking-widest relative z-10"><i data-lucide="activity" class="w-3 h-3 inline mr-1 -mt-0.5"></i>現在の相場状況</h3>
+                        <div id="signal-color" class="w-20 h-20 rounded-full flex items-center justify-center mb-4 relative z-10 shadow-[0_0_30px_currentColor]">
+                            <i data-lucide="power" class="w-8 h-8 text-slate-900"></i>
+                        </div>
+                        <div id="signal-text" class="text-2xl font-black text-white mb-2 relative z-10 tracking-wider">---</div>
+                        <p id="signal-reason" class="text-slate-400 text-xs relative z-10 line-clamp-3 mb-4"></p>
+                        
+                        <button id="discover-speak-btn" class="relative z-10 bg-blue-900/30 hover:bg-blue-800/50 text-blue-400 border border-blue-500/30 rounded-full px-4 py-2 text-xs font-bold transition-all flex items-center hidden">
+                            <i data-lucide="volume-2" class="w-4 h-4 mr-2"></i> 音声で解説を聞く
+                        </button>
+                    </div>
+
+                    <div class="lg:col-span-3 glass-panel p-6">
+                        <h3 class="text-xs text-slate-400 mb-4 font-bold flex items-center justify-between tracking-widest">
+                            <span class="flex items-center text-orange-400"><i data-lucide="flame" class="w-4 h-4 mr-2"></i> 資金流入ヒートマップ</span>
+                        </h3>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4 h-[calc(100%-2rem)]" id="heatmap-container"></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <div class="lg:col-span-1 glass-panel p-6 flex flex-col items-center sticky top-24 self-start">
+                        <div class="w-full mb-6 bg-slate-900/80 p-4 rounded-xl border border-slate-700/50 shadow-inner">
+                            <label class="block text-xs font-bold text-slate-400 mb-2">投資できる予算（円）</label>
+                            <div class="flex items-center border-b border-slate-600 focus-within:border-purple-500 transition-colors pb-1">
+                                <span class="text-lg text-slate-500 mr-2 en-font">¥</span>
+                                <input type="number" id="budget-input" value="1000000" oninput="recalculateBudgets()" class="bg-transparent outline-none text-3xl font-black text-white w-full en-font tracking-tight">
+                            </div>
+                        </div>
+                        <div class="relative w-full aspect-square max-w-[220px] mb-4">
+                            <canvas id="portfolioChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-3 flex flex-col gap-6" id="portfolio-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-myportfolio" class="tab-content gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="glass-panel p-6 md:col-span-2 relative overflow-hidden">
+                    <div class="absolute -right-10 -bottom-10 opacity-5"><i data-lucide="pie-chart" class="w-64 h-64"></i></div>
+                    <h3 class="text-xs font-bold text-slate-400 mb-6 tracking-widest"><i data-lucide="wallet" class="w-4 h-4 inline mr-2 -mt-0.5"></i>現在の総評価額</h3>
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-end relative z-10">
+                        <div>
+                            <div class="text-5xl md:text-6xl font-black text-white en-font tracking-tighter" id="my-total-value">¥0</div>
+                            <div class="text-sm font-bold text-slate-400 mt-2">総投資額: <span id="my-total-invested" class="text-slate-300 en-font">¥0</span></div>
+                        </div>
+                        <div class="mt-4 sm:mt-0 sm:text-right">
+                            <div class="text-xs font-bold text-slate-500 mb-1">評価損益</div>
+                            <div class="text-3xl font-black en-font" id="my-total-profit">¥0 (0%)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-6 flex flex-col justify-center items-center text-center relative overflow-hidden group">
+                    <div class="absolute inset-0 bg-gradient-to-br from-emerald-900/20 to-teal-900/20"></div>
+                    <i data-lucide="stethoscope" class="w-10 h-10 text-emerald-400 mb-4 relative z-10 group-hover:scale-110 transition-transform"></i>
+                    <p class="text-xs font-bold text-slate-300 mb-5 relative z-10 leading-relaxed">保有銘柄の最新状況と<br><span class="text-emerald-400 font-bold">「全体リスク」</span>をAIが診断します。</p>
+                    <button onclick="scanMyPortfolio()" class="btn-zenith !bg-[linear-gradient(135deg,#059669,#10b981)] text-white text-sm font-bold px-6 py-4 rounded-xl w-full flex items-center justify-center shadow-lg relative z-10">
+                        <i data-lucide="activity" class="w-4 h-4 mr-2"></i> 全体をAI診断する
+                    </button>
+                </div>
+            </div>
+
+            <div id="my-market-commentary" class="hidden glass-panel p-6 border-blue-500/30">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+                    <div class="flex items-center">
+                        <div class="bg-blue-500/20 p-2 rounded-lg mr-3"><i data-lucide="network" class="w-5 h-5 text-blue-400"></i></div>
+                        <h3 class="font-bold text-blue-400 tracking-wide">ポートフォリオのリスク・相関性診断</h3>
+                    </div>
+                    <button id="portfolio-speak-btn" class="bg-blue-900/30 hover:bg-blue-800/50 text-blue-400 border border-blue-500/30 rounded-full px-4 py-2 text-xs font-bold transition-all flex items-center">
+                        <i data-lucide="volume-2" class="w-4 h-4 mr-2"></i> 音声で聞く
+                    </button>
+                </div>
+                <p id="my-commentary-text" class="text-sm text-slate-300 leading-relaxed sm:pl-12"></p>
+            </div>
+
+            <div class="glass-panel p-5">
+                <h3 class="text-xs font-bold text-slate-400 mb-3 tracking-widest">保有銘柄を追加する</h3>
+                <form id="add-asset-form" class="flex flex-col sm:flex-row gap-3">
+                    <div class="flex-grow relative">
+                        <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500"></i>
+                        <input type="text" id="add-ticker" placeholder="ティッカー (例: AAPL, NVDA)" required class="w-full bg-slate-900/50 border border-slate-700/50 rounded-xl pl-10 pr-4 py-3 text-white focus:outline-none focus:border-purple-500 en-font uppercase transition-colors">
+                    </div>
+                    <div class="w-full sm:w-1/4">
+                        <input type="number" id="add-price" placeholder="取得単価" class="w-full bg-slate-900/50 border border-slate-700/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 en-font transition-colors" step="0.01">
+                    </div>
+                    <div class="w-full sm:w-1/4">
+                        <input type="number" id="add-shares" placeholder="保有数量" class="w-full bg-slate-900/50 border border-slate-700/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 en-font transition-colors" step="0.01">
+                    </div>
+                    <button type="submit" class="bg-slate-800 hover:bg-slate-700 text-white font-bold px-6 py-3 rounded-xl transition-colors border border-slate-600 hover:border-slate-400 flex items-center justify-center whitespace-nowrap">
+                        <i data-lucide="plus" class="w-4 h-4"></i> 追加
+                    </button>
+                </form>
+            </div>
+
+            <div id="my-portfolio-list" class="grid grid-cols-1 lg:grid-cols-2 gap-5"></div>
+            <div id="my-portfolio-empty" class="text-center text-slate-500 py-16 glass-panel">
+                <div class="bg-slate-800/50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"><i data-lucide="package-open" class="w-10 h-10 text-slate-600"></i></div>
+                <p class="text-lg font-bold text-slate-400 mb-2">保有銘柄がありません</p>
+                <p class="text-sm">上のフォームからあなたが保有している銘柄を登録してください。</p>
+            </div>
+        </div>
+    </main>
+
+    <template id="discover-card-template">
+        <div class="glass-panel portfolio-card flex flex-col relative overflow-hidden group">
+            <div class="p-5 flex flex-col md:flex-row justify-between border-b border-slate-700/50 relative z-10">
+                <div class="md:w-1/2 mb-4 md:mb-0">
+                    <div class="flex flex-wrap gap-1.5 mb-3">
+                        <span class="text-[9px] font-bold px-2 py-0.5 rounded border type-badge bg-slate-800/80 backdrop-blur uppercase">種類</span>
+                        <span class="text-[9px] font-bold px-2 py-0.5 rounded border sector-badge bg-slate-800/80 backdrop-blur uppercase"><i data-lucide="tag" class="w-2.5 h-2.5 inline mr-1 -mt-0.5"></i>業種/テーマ</span>
+                    </div>
+                    <div class="flex items-end gap-3 mb-2">
+                        <h4 class="text-4xl font-black text-white ticker-text en-font tracking-tighter leading-none">TICKER</h4>
+                        <span class="text-xl font-bold text-slate-300 current-price-text en-font leading-none pb-0.5">---</span>
+                    </div>
+                    <p class="text-xs text-slate-400 company-text mb-3">企業名</p>
+                </div>
+                
+                <div class="md:w-1/2 flex flex-col md:items-end justify-between mt-4 md:mt-0">
+                    <div class="text-right mb-3">
+                        <span class="text-xs font-bold text-slate-500 block tracking-widest">推奨配分</span>
+                        <span class="text-3xl font-black text-purple-400 allocation-text en-font leading-none">0%</span>
+                    </div>
+                    <div class="bg-slate-900/80 border border-slate-700/50 px-3 py-1.5 rounded-lg flex items-center justify-between gap-4 w-full md:w-auto">
+                        <div class="text-left">
+                            <span class="text-[10px] font-bold text-slate-500 block">購入目安額</span>
+                            <span class="text-sm font-bold text-white calculated-budget en-font">¥0</span>
+                        </div>
+                        <div class="bg-slate-800 px-2 py-1 rounded action-text text-xs font-bold text-white border border-slate-600">AI推奨行動</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-5 flex flex-col lg:flex-row gap-6 relative z-10 bg-slate-900/30">
+                <div class="lg:w-1/2">
+                    <h5 class="text-[11px] font-bold text-slate-400 mb-3 tracking-widest flex items-center"><i data-lucide="git-branch" class="w-3 h-3 mr-1.5"></i>3つの未来シナリオ予測</h5>
+                    <div class="space-y-3">
+                        <div class="relative">
+                            <div class="flex justify-between text-xs mb-1"><span class="text-emerald-400 font-bold">強気シナリオ <span class="text-emerald-500/70 text-[10px] ml-1 bull-target en-font">TARGET</span></span><span class="text-emerald-400 en-font font-bold bull-prob">0%</span></div>
+                            <div class="prob-bar-bg"><div class="prob-bar-fill fill-bull bull-bar" style="width: 0%"></div></div>
+                            <div class="text-[10px] text-slate-400 mt-1 truncate bull-cond"></div>
+                        </div>
+                        <div class="relative">
+                            <div class="flex justify-between text-xs mb-1"><span class="text-slate-300 font-bold">基本シナリオ <span class="text-slate-500 text-[10px] ml-1 base-target en-font">TARGET</span></span><span class="text-slate-300 en-font font-bold base-prob">0%</span></div>
+                            <div class="prob-bar-bg"><div class="prob-bar-fill fill-base base-bar" style="width: 0%"></div></div>
+                            <div class="text-[10px] text-slate-400 mt-1 truncate base-cond"></div>
+                        </div>
+                        <div class="relative">
+                            <div class="flex justify-between text-xs mb-1"><span class="text-red-400 font-bold">弱気シナリオ <span class="text-red-500/70 text-[10px] ml-1 bear-target en-font">TARGET</span></span><span class="text-red-400 en-font font-bold bear-prob">0%</span></div>
+                            <div class="prob-bar-bg"><div class="prob-bar-fill fill-bear bear-bar" style="width: 0%"></div></div>
+                            <div class="text-[10px] text-slate-400 mt-1 truncate bear-cond"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:w-1/2 flex flex-col justify-between">
+                    <div>
+                        <h5 class="text-[11px] font-bold text-blue-400 mb-2 tracking-widest flex items-center"><i data-lucide="cpu" class="w-3 h-3 mr-1.5"></i>AIの分析理由</h5>
+                        <p class="text-xs text-slate-300 leading-relaxed reason-text line-clamp-3 mb-3"></p>
+                    </div>
+                    <div class="bg-slate-900/80 border border-slate-700/50 rounded-xl p-3">
+                        <div class="flex justify-between text-[10px] font-bold text-slate-400 mb-1.5 px-1">
+                            <span class="text-red-400/80">損切: <span class="sl-text text-red-400 font-bold en-font"></span></span>
+                            <span class="text-emerald-400/80">利確: <span class="tp-text text-emerald-400 font-bold en-font"></span></span>
+                        </div>
+                        <div class="rr-meter">
+                            <div class="rr-meter-sl" style="width: 30%;"></div>
+                            <div class="rr-meter-tp" style="width: 70%;"></div>
+                            <div class="rr-meter-current" style="left: 30%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="deep-scan-btn w-full py-4 flex items-center justify-center text-sm font-bold text-purple-300 hover:text-white bg-slate-900/50 hover:bg-purple-900/30 transition-all border-t border-slate-700/50 group">
+                <i data-lucide="fingerprint" class="w-4 h-4 mr-2 group-hover:scale-125 transition-transform text-purple-400"></i>
+                <span class="tracking-wide">企業カルテを開く（詳細分析）</span>
+            </button>
+        </div>
+    </template>
+
+    <template id="myasset-card-template">
+        <div class="glass-panel portfolio-card flex flex-col relative group">
+            <button class="delete-btn absolute top-4 right-4 text-slate-600 hover:text-red-500 transition-colors z-20 bg-slate-900/80 p-2 rounded-full border border-slate-700/50" title="削除"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+
+            <div class="p-5 border-b border-slate-700/50 flex justify-between items-start">
+                <div>
+                    <h4 class="text-3xl font-black text-white ticker-text en-font leading-none tracking-tight">TICKER</h4>
+                    <div class="mt-3 flex gap-3 text-xs font-bold text-slate-400">
+                        <div>取得単価: <span class="text-slate-200 buy-price-text en-font">---</span></div>
+                        <div>保有数: <span class="text-slate-200 shares-text en-font">---</span></div>
+                    </div>
+                </div>
+                <div class="text-right pr-8">
+                    <div class="text-xs font-bold text-slate-500 mb-1 uppercase tracking-widest">損益</div>
+                    <div class="text-2xl font-black en-font profit-text leading-none">---</div>
+                </div>
+            </div>
+
+            <div class="p-5 flex flex-col justify-between flex-grow bg-slate-900/30">
+                <div class="flex justify-between items-center mb-3">
+                    <div class="text-xs font-bold text-slate-500">現在価格</div>
+                    <div class="text-lg font-bold text-white en-font current-price-text">未取得</div>
+                </div>
+                
+                <div class="bg-slate-900/80 border border-slate-700/50 rounded-xl p-3 mb-4 flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-400">専門家判定</span>
+                    <span class="px-3 py-1 rounded font-bold text-xs border verdict-badge bg-slate-800 border-slate-700 text-slate-400 tracking-wider">未診断</span>
+                </div>
+
+                <div class="mb-4">
+                    <p class="text-xs text-slate-300 leading-relaxed advice-text line-clamp-3">「全体をAI診断する」ボタンを押してください。</p>
+                </div>
+                
+                <div class="mt-auto pt-4 border-t border-slate-700/50">
+                    <button class="why-moved-btn w-full bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 rounded-lg py-2 text-xs font-bold transition-colors flex items-center justify-center">
+                        <i data-lucide="zap" class="w-3 h-3 mr-2 text-amber-400"></i> なぜ動いた？（最新ニュース解説）
+                    </button>
+                    <div class="why-moved-result hidden mt-3 p-3 bg-slate-900/80 rounded-lg border border-slate-700 text-[11px] text-slate-300 leading-relaxed"></div>
+                </div>
+            </div>
+            
+            <button class="deep-scan-btn w-full py-3 bg-slate-900/80 hover:bg-purple-900/30 text-purple-400 hover:text-purple-300 border-t border-slate-700/50 text-[11px] font-bold transition-all flex items-center justify-center tracking-widest">
+                <i data-lucide="search" class="w-3 h-3 mr-2"></i> 企業カルテを開く
+            </button>
+        </div>
+    </template>
+
+    <div id="deep-scan-modal" class="fixed inset-0 modal-overlay hidden flex items-center justify-center p-2 sm:p-4 opacity-0 transition-opacity duration-300">
+        <div class="modal-content w-full max-w-7xl rounded-[2rem] h-[95vh] flex flex-col relative overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)] border border-slate-700/50">
+            
+            <div class="p-4 md:p-6 border-b border-slate-700/50 flex justify-between items-center bg-slate-900/80 backdrop-blur z-20">
+                <div class="flex items-center space-x-4">
+                    <div class="bg-gradient-to-br from-purple-600 to-pink-600 p-2.5 rounded-xl shadow-[0_0_15px_rgba(219,39,119,0.4)]">
+                        <i data-lucide="fingerprint" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl md:text-2xl font-black text-white tracking-tight flex items-center">
+                            企業カルテ <span class="mx-2 text-slate-600">/</span> <span id="modal-title" class="text-purple-400 en-font">TICKER</span>
+                        </h3>
+                        <p class="text-[11px] text-slate-400 font-bold tracking-widest" id="modal-subtitle">企業名</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2 sm:space-x-3">
+                    <button id="modal-speak-btn" class="bg-blue-900/30 hover:bg-blue-800/50 text-blue-400 border border-blue-500/30 rounded-full p-2.5 sm:px-4 sm:py-2 text-xs font-bold transition-all hidden flex items-center" title="AIの結論を音声で聞く">
+                        <i data-lucide="volume-2" class="w-5 h-5 sm:w-4 sm:h-4 sm:mr-2"></i>
+                        <span class="hidden sm:inline">結論を聞く</span>
+                    </button>
+                    <button id="close-modal-btn" class="text-slate-400 hover:text-white p-3 rounded-full hover:bg-slate-800 transition-colors bg-slate-900/50 border border-slate-700/50"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+            </div>
+
+            <div class="p-4 md:p-8 overflow-y-auto flex-grow relative bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] bg-repeat" id="modal-body">
+                
+                <div id="modal-error-message" class="hidden bg-red-900/20 border border-red-500/50 text-red-200 p-4 rounded-2xl text-center mb-6 backdrop-blur-sm"></div>
+
+                <div id="modal-loading" class="absolute inset-0 bg-[#020617]/90 backdrop-blur-sm z-30 flex flex-col items-center justify-center pb-10">
+                    <div class="scan-line-modal"></div>
+                    <div class="flex flex-wrap justify-center items-center gap-4 mb-8 opacity-80">
+                        <i data-lucide="zap" class="w-6 h-6 text-blue-500 animate-pulse delay-75"></i>
+                        <i data-lucide="shield" class="w-6 h-6 text-amber-500 animate-pulse delay-150"></i>
+                        <i data-lucide="globe" class="w-6 h-6 text-emerald-500 animate-pulse delay-300"></i>
+                        <i data-lucide="binary" class="w-6 h-6 text-fuchsia-500 animate-pulse delay-500"></i>
+                    </div>
+                    <p class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500 mb-3 tracking-widest text-center" id="modal-loading-text">データを分析・統合中...</p>
+                    <p class="text-sm text-slate-400 text-center max-w-md">Gemini AIが世界のニュース、非伝統的データ、シナリオを徹底分析しています...</p>
+                </div>
+
+                <div id="modal-content-data" class="hidden flex-col gap-8">
+
+                    <!-- リアルタイム折れ線グラフ (安全なIframe方式) -->
+                    <div class="w-full h-[300px] md:h-[400px] rounded-2xl overflow-hidden border border-slate-700/50 bg-[#131722] shadow-[0_0_20px_rgba(0,0,0,0.5)]" id="tv-chart-container">
+                    </div>
+
+                    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-2">
+                        <div class="xl:col-span-1 bg-slate-900/40 rounded-2xl p-4 border border-slate-700 flex flex-col items-center justify-center">
+                            <h4 class="text-xs font-bold text-slate-400 mb-2 tracking-widest text-center w-full">AI総合評価チャート</h4>
+                            <div class="relative w-full aspect-square max-w-[220px]">
+                                <canvas id="radarChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="xl:col-span-2 bg-gradient-to-r from-blue-900/20 via-purple-900/20 to-pink-900/20 rounded-2xl p-6 border border-purple-500/50 relative overflow-hidden flex flex-col justify-center shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+                            <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNSkiLz48L3N2Zz4=')]"></div>
+                            <div class="relative z-10">
+                                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
+                                    <h4 class="text-lg font-bold text-white flex items-center">
+                                        <i data-lucide="gavel" class="w-6 h-6 mr-2 text-purple-400"></i> 
+                                        専門家AIチームの最終決断
+                                    </h4>
+                                    <span id="modal-decision-badge" class="px-5 py-2 rounded-full font-black text-sm shadow-lg border">---</span>
+                                </div>
+                                <p id="modal-final-conclusion" class="text-sm md:text-base text-slate-200 leading-relaxed font-bold bg-slate-950/60 p-4 rounded-xl border border-slate-700/50 backdrop-blur-sm"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800/20 rounded-2xl p-5 border border-slate-700/50">
+                        <h4 class="text-sm font-bold text-pink-400 mb-4 flex items-center tracking-wide"><i data-lucide="database" class="w-5 h-5 mr-2"></i> 非伝統的データ（裏データ）</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="bg-slate-900/80 p-4 rounded-xl border border-pink-500/20"><div class="flex items-center mb-2"><i data-lucide="message-square" class="w-4 h-4 text-pink-400 mr-2"></i><span class="text-xs font-bold text-pink-400">SNS感情分析</span></div><p class="text-[11px] text-slate-300 leading-relaxed" id="alt-sentiment"></p></div>
+                            <div class="bg-slate-900/80 p-4 rounded-xl border border-teal-500/20"><div class="flex items-center mb-2"><i data-lucide="eye" class="w-4 h-4 text-teal-400 mr-2"></i><span class="text-xs font-bold text-teal-400">内部者取引(大株主等)</span></div><p class="text-[11px] text-slate-300 leading-relaxed" id="alt-insider"></p></div>
+                            <div class="bg-slate-900/80 p-4 rounded-xl border border-violet-500/20"><div class="flex items-center mb-2"><i data-lucide="activity" class="w-4 h-4 text-violet-400 mr-2"></i><span class="text-xs font-bold text-violet-400">テクニカル指標</span></div><p class="text-[11px] text-slate-300 leading-relaxed" id="alt-technical"></p></div>
+                            <div class="bg-slate-900/80 p-4 rounded-xl border border-rose-500/20"><div class="flex items-center mb-2"><i data-lucide="truck" class="w-4 h-4 text-rose-400 mr-2"></i><span class="text-xs font-bold text-rose-400">地政学・サプライチェーン</span></div><p class="text-[11px] text-slate-300 leading-relaxed" id="alt-supply"></p></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-blue-900/10 rounded-xl p-4 border border-blue-500/20">
+                            <h4 class="text-xs font-bold text-blue-400 mb-2"><i data-lucide="zap" class="w-4 h-4 inline mr-1 -mt-0.5"></i>グロース担当（成長性）</h4><p class="text-xs text-slate-300 leading-relaxed" id="modal-genius-view"></p>
+                        </div>
+                        <div class="bg-amber-900/10 rounded-xl p-4 border border-amber-500/20">
+                            <h4 class="text-xs font-bold text-amber-400 mb-2"><i data-lucide="shield" class="w-4 h-4 inline mr-1 -mt-0.5"></i>バリュー担当（割安・守り）</h4><p class="text-xs text-slate-300 leading-relaxed" id="modal-veteran-view"></p>
+                        </div>
+                        <div class="bg-emerald-900/10 rounded-xl p-4 border border-emerald-500/20">
+                            <h4 class="text-xs font-bold text-emerald-400 mb-2"><i data-lucide="globe" class="w-4 h-4 inline mr-1 -mt-0.5"></i>マクロ担当（市場環境）</h4><p class="text-xs text-slate-300 leading-relaxed" id="modal-macro-view"></p>
+                        </div>
+                        <div class="bg-fuchsia-900/10 rounded-xl p-4 border border-fuchsia-500/20">
+                            <h4 class="text-xs font-bold text-fuchsia-400 mb-2"><i data-lucide="binary" class="w-4 h-4 inline mr-1 -mt-0.5"></i>クオンツ担当（データ）</h4><p class="text-xs text-slate-300 leading-relaxed" id="modal-quant-view"></p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-1 glass-panel p-6">
+                            <h4 class="text-sm font-bold text-white mb-5 flex items-center tracking-wide"><i data-lucide="calendar-clock" class="w-5 h-5 mr-2 text-amber-400"></i> 今後の注目イベント</h4>
+                            <div class="timeline-container" id="modal-timeline"></div>
+                        </div>
+
+                        <div class="lg:col-span-2 flex flex-col gap-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="glass-panel p-5"><h4 class="text-sm font-bold text-slate-400 mb-2 section-title title-blue">事業内容</h4><p id="modal-business" class="text-xs text-slate-300 leading-relaxed"></p></div>
+                                <div class="glass-panel p-5"><h4 class="text-sm font-bold text-slate-400 mb-2 section-title title-green">業績と強み</h4><p id="modal-performance" class="text-xs text-slate-300 mb-2 leading-relaxed"></p><div class="text-[11px] text-green-400 font-bold" id="modal-strength"></div></div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="glass-panel p-4"><h4 class="text-sm font-bold text-slate-400 mb-2 section-title title-indigo">財務状態</h4><p id="modal-financial" class="text-[11px] text-slate-300 leading-relaxed"></p></div>
+                                <div class="glass-panel p-4"><h4 class="text-sm font-bold text-slate-400 mb-2 section-title title-fuchsia">投資(お金の使い道)</h4><p id="modal-investment" class="text-[11px] text-slate-300 leading-relaxed"></p></div>
+                                <div class="glass-panel p-4"><h4 class="text-sm font-bold text-slate-400 mb-2 section-title title-amber">株主還元</h4><p id="modal-shareholder" class="text-[11px] text-slate-300 leading-relaxed"></p></div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== スクリプト ===== -->
+    <script>
+        // --- 認証（パスワード）システム ---
+        let apiKey = localStorage.getItem('autopilot_api_key') || "";
+
+        function checkAuth() {
+            const overlay = document.getElementById('auth-overlay');
+            if (!apiKey) {
+                overlay.classList.remove('hidden');
+                overlay.classList.add('flex');
+            } else {
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+            }
+        }
+
+        function saveApiKey() {
+            const input = document.getElementById('api-key-input').value.trim();
+            if (input) {
+                apiKey = input;
+                localStorage.setItem('autopilot_api_key', apiKey);
+                checkAuth();
+            }
+        }
+
+        function resetApiKey() {
+            localStorage.removeItem('autopilot_api_key');
+            apiKey = "";
+            location.reload();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth(); // 起動時にキーがあるかチェック
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            } else {
+                setTimeout(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); }, 500);
+            }
+        });
+
+        let portfolioChartInstance = null;
+        let radarChartInstance = null;
+        let currentDiscoverData = [];
+        let loadingInterval;
+
+        const loadingPanel = document.getElementById('loading-panel');
+        const loadingTitle = document.getElementById('loading-title');
+        const loadingText = document.getElementById('loading-text');
+        const errorMsg = document.getElementById('error-message');
+        const modal = document.getElementById('deep-scan-modal');
+
+        let currentUtterance = null;
+        let isSpeaking = false;
+
+        function speakText(text, btnElement) {
+            if (!('speechSynthesis' in window)) return;
+            if (isSpeaking) { window.speechSynthesis.cancel(); isSpeaking = false; if(btnElement) btnElement.classList.remove('speaking-pulse', 'text-pink-400', 'border-pink-500/50', 'bg-pink-900/30'); return; }
+            currentUtterance = new SpeechSynthesisUtterance(text.replace(/<[^>]*>?/gm, ''));
+            currentUtterance.lang = 'ja-JP'; currentUtterance.rate = 1.05; 
+            currentUtterance.onstart = () => { isSpeaking = true; if(btnElement) btnElement.classList.add('speaking-pulse', 'text-pink-400', 'border-pink-500/50', 'bg-pink-900/30'); };
+            currentUtterance.onend = currentUtterance.onerror = () => { isSpeaking = false; if(btnElement) btnElement.classList.remove('speaking-pulse', 'text-pink-400', 'border-pink-500/50', 'bg-pink-900/30'); };
+            window.speechSynthesis.speak(currentUtterance);
+        }
+
+        function stopSpeaking() {
+            if (isSpeaking) { window.speechSynthesis.cancel(); isSpeaking = false; document.querySelectorAll('.speaking-pulse').forEach(el => el.classList.remove('speaking-pulse', 'text-pink-400', 'border-pink-500/50', 'bg-pink-900/30')); }
+        }
+
         function switchMainTab(tabId) {
             stopSpeaking(); 
             document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
@@ -10,9 +623,10 @@
 
         document.getElementById('close-modal-btn').addEventListener('click', () => { stopSpeaking(); modal.classList.remove('opacity-100'); setTimeout(() => modal.classList.add('hidden'), 300); });
         
-        // 【NEW】絶対に止まらない自動修復通信システム
+        // 【重要】絶対に止まらない自動修復通信システム
         async function callGeminiAPI(payload) {
-            const models = ['gemini-1.5-flash', 'gemini-1.5-pro'];
+            // flash-latestを優先し、だめならflashへフォールバック
+            const models = ['gemini-1.5-flash-latest', 'gemini-1.5-flash'];
             let lastError = null;
 
             for (const model of models) {
@@ -22,15 +636,23 @@
                     if (response.ok) return await response.json();
                     
                     const errText = await response.text();
-                    console.warn(`[${model}] 検索ツール制限によるエラー検知:`, errText);
-                    lastError = new Error(`通信がブロックされました`);
+                    console.warn(`[${model}] エラー検知:`, errText);
+                    lastError = new Error(`通信エラー (${response.status})`);
                     
-                    // 制限に引っかかった場合、検索ツールを外して再チャレンジ（自己修復）
+                    // 検索ツール制限に引っかかった場合、検索ツールを外して再チャレンジ（自己修復）
                     if ((response.status === 400 || response.status === 404 || response.status === 403) && payload.tools) {
                         const fallbackPayload = { ...payload };
-                        delete fallbackPayload.tools; // 検索ツールを削除
+                        delete fallbackPayload.tools; // 検索ツールを削除してAIの知識のみで勝負
+                        console.log("検索ツールを無効化して自己修復実行...");
                         const fbResponse = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fallbackPayload) });
                         if (fbResponse.ok) return await fbResponse.json();
+                        
+                        const fbErrText = await fbResponse.text();
+                        lastError = new Error(`修復通信エラー (${fbResponse.status}): ${fbErrText}`);
+                    } else if (response.status === 401) {
+                         // 401エラー（鍵の間違い）の場合はループを抜けてユーザーに知らせる
+                         lastError = new Error(`APIキーが無効です。正しいキーを入力してください。`);
+                         break;
                     }
                 } catch (e) {
                     lastError = e;
@@ -41,7 +663,19 @@
 
         function extractNumber(str) {
             if (typeof str === 'number') return str;
-<!-- ... existing code ... -->
+            if (!str) return 0;
+            const num = parseFloat(str.replace(/[^0-9.-]/g, ''));
+            return isNaN(num) ? 0 : num;
+        }
+
+        function safeSetText(id, text) { const el = document.getElementById(id); if (el) el.textContent = text || "---"; }
+
+        async function startAutoPilotMultiStep() {
+            document.getElementById('intro-panel').style.display = 'none';
+            document.getElementById('discover-results').classList.add('hidden');
+            errorMsg.classList.add('hidden');
+
+            loadingTitle.textContent = "AI多段思考プロセスを実行中...";
             loadingText.textContent = "ステップ1/2: 市場のトレンドと有望な3銘柄を抽出中...";
             loadingPanel.classList.remove('hidden');
             loadingPanel.classList.add('flex');
@@ -52,7 +686,14 @@
                     systemInstruction: { parts: [{ text: "必ずJSONで出力してください。" }] },
                     tools: [{ google_search: {} }],
                     generationConfig: {
-<!-- ... existing code ... -->
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                marketSignal: { type: "OBJECT", properties: { status: { type: "STRING" }, reason: { type: "STRING" } }, required: ["status", "reason"] },
+                                sectorHeatmap: { type: "ARRAY", items: { type: "OBJECT", properties: { sectorName: { type: "STRING" }, heat: { type: "STRING" }, reason: { type: "STRING" } } } },
+                                selectedTickers: { type: "ARRAY", items: { type: "STRING" }, description: "選ばれた3つのティッカーシンボル" }
+                            },
                             required: ["marketSignal", "sectorHeatmap", "selectedTickers"]
                         }
                     }
@@ -69,7 +710,31 @@
                     systemInstruction: { parts: [{ text: "プロのアナリストとしてJSONで日本語出力してください。配分は合計100%になるように。" }] },
                     tools: [{ google_search: {} }],
                     generationConfig: {
-<!-- ... existing code ... -->
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                portfolio: {
+                                    type: "ARRAY",
+                                    items: {
+                                        type: "OBJECT",
+                                        properties: {
+                                            assetType: { type: "STRING" }, sector: { type: "STRING" },
+                                            ticker: { type: "STRING" }, companyName: { type: "STRING" }, currentPrice: { type: "STRING" },
+                                            allocationPercent: { type: "INTEGER" }, simpleReason: { type: "STRING" }, actionInstruction: { type: "STRING" },
+                                            takeProfit: { type: "STRING", description:"数値で" }, stopLoss: { type: "STRING", description:"数値で" },
+                                            scenarios: {
+                                                type: "OBJECT",
+                                                properties: {
+                                                    bull: { type: "OBJECT", properties: { probability: {type:"INTEGER"}, targetPrice: {type:"STRING"}, condition: {type:"STRING"} }, required:["probability", "targetPrice"] },
+                                                    base: { type: "OBJECT", properties: { probability: {type:"INTEGER"}, targetPrice: {type:"STRING"}, condition: {type:"STRING"} }, required:["probability", "targetPrice"] },
+                                                    bear: { type: "OBJECT", properties: { probability: {type:"INTEGER"}, targetPrice: {type:"STRING"}, condition: {type:"STRING"} }, required:["probability", "targetPrice"] }
+                                                }
+                                            }
+                                        },
+                                        required: ["assetType", "sector", "ticker", "companyName", "currentPrice", "allocationPercent", "simpleReason", "actionInstruction", "takeProfit", "stopLoss"]
+                                    }
+                                }
                             }
                         }
                     }
@@ -80,7 +745,214 @@
 
                 const finalData = { ...step1Data, portfolio: step2Data.portfolio };
                 currentDiscoverData = finalData.portfolio; 
-<!-- ... existing code ... -->
+                renderDiscoverResults(finalData);
+
+            } catch (error) {
+                console.error(error);
+                errorMsg.innerHTML = `エラーが発生しました:<br><span class="text-xs break-all">${error.message}</span><br><br>アクセスキー（パスワード）が間違っている可能性があります。<br><button onclick="resetApiKey()" class="mt-4 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white font-bold text-sm hover:bg-slate-700 transition-colors inline-flex items-center"><i data-lucide="key" class="w-4 h-4 mr-2"></i> キーを再入力する</button>`;
+                errorMsg.classList.remove('hidden');
+                document.getElementById('intro-panel').style.display = 'block';
+                lucide.createIcons();
+            } finally {
+                loadingPanel.classList.add('hidden');
+                loadingPanel.classList.remove('flex');
+            }
+        }
+
+        function renderDiscoverResults(data) {
+            if (!data) return;
+            const sigLamp = document.getElementById('signal-color');
+            const sigText = document.getElementById('signal-text');
+            sigLamp.className = 'w-20 h-20 rounded-full flex items-center justify-center mb-4 relative z-10'; 
+            if (data.marketSignal.status === 'GREEN') { sigLamp.classList.add('bg-green-500/20', 'text-green-400', 'shadow-[0_0_30px_rgba(34,197,94,0.4)]'); sigText.textContent = '買いシグナル'; sigText.className = 'text-2xl font-black text-green-400 mb-2 relative z-10 tracking-wider'; } 
+            else if (data.marketSignal.status === 'YELLOW') { sigLamp.classList.add('bg-yellow-500/20', 'text-yellow-400', 'shadow-[0_0_30px_rgba(234,179,8,0.4)]'); sigText.textContent = '警戒 (注意)'; sigText.className = 'text-2xl font-black text-yellow-400 mb-2 relative z-10 tracking-wider'; } 
+            else { sigLamp.classList.add('bg-red-500/20', 'text-red-400', 'shadow-[0_0_30px_rgba(239,68,68,0.4)]'); sigText.textContent = '見送り推奨'; sigText.className = 'text-2xl font-black text-red-400 mb-2 relative z-10 tracking-wider'; }
+            
+            safeSetText('signal-reason', data.marketSignal.reason);
+
+            const discoverSpeakBtn = document.getElementById('discover-speak-btn');
+            if(discoverSpeakBtn) {
+                discoverSpeakBtn.classList.remove('hidden');
+                discoverSpeakBtn.onclick = () => speakText(`現在の相場状況は、${sigText.textContent}です。${data.marketSignal.reason}`, discoverSpeakBtn);
+            }
+
+            const heatmapContainer = document.getElementById('heatmap-container');
+            heatmapContainer.innerHTML = '';
+            if (data.sectorHeatmap) {
+                data.sectorHeatmap.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = `p-3 rounded-xl border flex flex-col justify-center items-center text-center ${item.heat === 'HOT' ? 'heat-hot' : item.heat === 'WARM' ? 'heat-warm' : 'heat-cold'}`;
+                    const icon = item.heat === 'HOT' ? 'flame' : item.heat === 'WARM' ? 'thermometer' : 'snowflake';
+                    div.innerHTML = `
+                        <div class="text-[9px] font-bold text-white/70 mb-1 tech-font flex items-center tracking-widest"><i data-lucide="${icon}" class="w-3 h-3 mr-1"></i>${item.heat}</div>
+                        <div class="text-sm font-bold text-white leading-tight mb-1">${item.sectorName}</div>
+                        <div class="text-[10px] text-white/70 leading-tight line-clamp-2">${item.reason}</div>
+                    `;
+                    heatmapContainer.appendChild(div);
+                });
+            }
+
+            const listContainer = document.getElementById('portfolio-list');
+            listContainer.innerHTML = '';
+            
+            if (data.portfolio) {
+                data.portfolio.sort((a, b) => b.allocationPercent - a.allocationPercent).forEach((item, index) => {
+                    const template = document.getElementById('discover-card-template');
+                    if(!template) return;
+                    const clone = template.content.cloneNode(true);
+                    
+                    const safeSetClone = (selector, text) => { const el = clone.querySelector(selector); if (el) el.textContent = text || "---"; };
+
+                    safeSetClone('.type-badge', item.assetType);
+                    const sb = clone.querySelector('.sector-badge');
+                    if(sb) sb.innerHTML = `<i data-lucide="tag" class="w-2.5 h-2.5 inline mr-1 -mt-0.5 text-slate-400"></i>${item.sector}`;
+                    safeSetClone('.ticker-text', item.ticker);
+                    safeSetClone('.company-text', item.companyName);
+                    safeSetClone('.current-price-text', item.currentPrice);
+                    safeSetClone('.allocation-text', `${item.allocationPercent}%`);
+                    
+                    const budgetEl = clone.querySelector('.calculated-budget');
+                    if(budgetEl) budgetEl.id = `discover-budget-${index}`;
+                    
+                    safeSetClone('.reason-text', item.simpleReason);
+                    safeSetClone('.action-text', item.actionInstruction);
+                    safeSetClone('.tp-text', item.takeProfit);
+                    safeSetClone('.sl-text', item.stopLoss);
+
+                    const cp = extractNumber(item.currentPrice);
+                    const tp = extractNumber(item.takeProfit);
+                    const sl = extractNumber(item.stopLoss);
+                    if (cp > 0 && tp > 0 && sl > 0 && tp > sl) {
+                        const slPercent = Math.max(5, Math.min(95, ((cp - sl) / (tp - sl)) * 100));
+                        const rrSl = clone.querySelector('.rr-meter-sl');
+                        const rrTp = clone.querySelector('.rr-meter-tp');
+                        const rrCur = clone.querySelector('.rr-meter-current');
+                        if(rrSl) rrSl.style.width = `${slPercent}%`;
+                        if(rrTp) rrTp.style.width = `${100 - slPercent}%`;
+                        if(rrCur) rrCur.style.left = `${slPercent}%`;
+                    }
+
+                    if(item.scenarios) {
+                        if(item.scenarios.bull) { safeSetClone('.bull-prob', `${item.scenarios.bull.probability}%`); safeSetClone('.bull-target', item.scenarios.bull.targetPrice); safeSetClone('.bull-cond', item.scenarios.bull.condition); }
+                        if(item.scenarios.base) { safeSetClone('.base-prob', `${item.scenarios.base.probability}%`); safeSetClone('.base-target', item.scenarios.base.targetPrice); safeSetClone('.base-cond', item.scenarios.base.condition); }
+                        if(item.scenarios.bear) { safeSetClone('.bear-prob', `${item.scenarios.bear.probability}%`); safeSetClone('.bear-target', item.scenarios.bear.targetPrice); safeSetClone('.bear-cond', item.scenarios.bear.condition); }
+
+                        setTimeout(() => {
+                            const bullBar = clone.querySelector('.bull-bar'); const baseBar = clone.querySelector('.base-bar'); const bearBar = clone.querySelector('.bear-bar');
+                            if (bullBar && item.scenarios.bull) bullBar.style.width = `${item.scenarios.bull.probability}%`;
+                            if (baseBar && item.scenarios.base) baseBar.style.width = `${item.scenarios.base.probability}%`;
+                            if (bearBar && item.scenarios.bear) bearBar.style.width = `${item.scenarios.bear.probability}%`;
+                        }, 300);
+                    }
+
+                    const deepBtn = clone.querySelector('.deep-scan-btn');
+                    if(deepBtn) deepBtn.addEventListener('click', () => openDeepScanModal(item.ticker, item.companyName));
+                    listContainer.appendChild(clone);
+                });
+            }
+
+            const canvas = document.getElementById('portfolioChart');
+            if (canvas && data.portfolio) {
+                const ctx = canvas.getContext('2d');
+                if (portfolioChartInstance) portfolioChartInstance.destroy();
+                portfolioChartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: data.portfolio.map(i => i.ticker), datasets: [{ data: data.portfolio.map(i => i.allocationPercent), backgroundColor: ['#3b82f6', '#8b5cf6', '#db2777', '#10b981'], borderColor: 'transparent', borderWidth: 0, hoverOffset: 5 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { display: false } } } });
+            }
+
+            recalculateBudgets();
+            const resContainer = document.getElementById('discover-results');
+            resContainer.classList.remove('hidden');
+            resContainer.classList.add('flex');
+            setTimeout(() => { resContainer.style.opacity = '1'; lucide.createIcons(); }, 100);
+        }
+
+        function recalculateBudgets() {
+            let budget = parseInt(document.getElementById('budget-input').value.replace(/,/g, ''));
+            if (isNaN(budget) || budget <= 0) budget = 0;
+            currentDiscoverData.forEach((item, index) => {
+                const amount = Math.floor(budget * (item.allocationPercent / 100));
+                const el = document.getElementById(`discover-budget-${index}`);
+                if(el) el.textContent = `¥${amount.toLocaleString()}`;
+            });
+        }
+
+        /* =========================================================
+           機能2: マイ・ポートフォリオ
+        ========================================================= */
+        function getMyAssets() { return JSON.parse(localStorage.getItem('my_assets_v1') || '[]'); }
+        function saveMyAssets(assets) { localStorage.setItem('my_assets_v1', JSON.stringify(assets)); }
+
+        document.getElementById('add-asset-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const ticker = document.getElementById('add-ticker').value.trim().toUpperCase();
+            const price = parseFloat(document.getElementById('add-price').value) || 0;
+            const shares = parseFloat(document.getElementById('add-shares').value) || 0;
+            if(!ticker) return;
+            const assets = getMyAssets();
+            assets.push({ id: Date.now(), ticker, buyPrice: price, shares, verdict: null, advice: null });
+            saveMyAssets(assets);
+            document.getElementById('add-ticker').value = ''; document.getElementById('add-price').value = ''; document.getElementById('add-shares').value = '';
+            renderMyPortfolio();
+        });
+
+        function removeMyAsset(id) { let assets = getMyAssets(); assets = assets.filter(a => a.id !== id); saveMyAssets(assets); renderMyPortfolio(); }
+
+        function renderMyPortfolio() {
+            const assets = getMyAssets();
+            const list = document.getElementById('my-portfolio-list');
+            const emptyMsg = document.getElementById('my-portfolio-empty');
+            if(!list || !emptyMsg) return;
+            
+            list.innerHTML = '';
+            let totalInvested = 0;
+            if (assets.length === 0) {
+                emptyMsg.classList.remove('hidden');
+                safeSetText('my-total-invested', '¥0'); 
+                return;
+            }
+            emptyMsg.classList.add('hidden');
+
+            assets.forEach(asset => {
+                const template = document.getElementById('myasset-card-template');
+                if(!template) return;
+                const clone = template.content.cloneNode(true);
+                const safeSetClone = (selector, text) => { const el = clone.querySelector(selector); if (el) el.textContent = text || "---"; };
+                
+                safeSetClone('.ticker-text', asset.ticker);
+                safeSetClone('.buy-price-text', asset.buyPrice > 0 ? asset.buyPrice : '未設定');
+                safeSetClone('.shares-text', asset.shares > 0 ? asset.shares : '未設定');
+                totalInvested += (asset.buyPrice * asset.shares);
+
+                if (asset.verdict) {
+                    safeSetClone('.advice-text', asset.advice);
+                    const vBadge = clone.querySelector('.verdict-badge');
+                    if(vBadge) {
+                        vBadge.textContent = asset.verdict;
+                        if(asset.verdict.includes('BUY') || asset.verdict.includes('買')) vBadge.classList.add('bg-blue-500/20', 'text-blue-400', 'border-blue-500/50');
+                        else if(asset.verdict.includes('SELL') || asset.verdict.includes('売')) vBadge.classList.add('bg-red-500/20', 'text-red-400', 'border-red-500/50');
+                        else vBadge.classList.add('bg-amber-500/20', 'text-amber-400', 'border-amber-500/50');
+                    }
+                }
+
+                const delBtn = clone.querySelector('.delete-btn');
+                if(delBtn) delBtn.addEventListener('click', () => removeMyAsset(asset.id));
+                const deepBtn = clone.querySelector('.deep-scan-btn');
+                if(deepBtn) deepBtn.addEventListener('click', () => openDeepScanModal(asset.ticker, '保有銘柄'));
+                const whyMovedBtn = clone.querySelector('.why-moved-btn');
+                const whyMovedResult = clone.querySelector('.why-moved-result');
+                if(whyMovedBtn && whyMovedResult) whyMovedBtn.addEventListener('click', () => explainPriceMovement(asset.ticker, whyMovedBtn, whyMovedResult));
+
+                list.appendChild(clone);
+            });
+            safeSetText('my-total-invested', `¥${Math.round(totalInvested).toLocaleString()}`);
+            lucide.createIcons();
+        }
+
+        async function scanMyPortfolio() {
+            const assets = getMyAssets();
+            if(assets.length === 0) return;
+
+            errorMsg.classList.add('hidden');
+            loadingTitle.textContent = "データを分析・統合中...";
             loadingText.textContent = "ポートフォリオの相関性と個別銘柄を深く分析中...";
             loadingPanel.classList.remove('hidden');
             loadingPanel.classList.add('flex');
@@ -103,7 +975,34 @@
                 const aiData = JSON.parse(result.candidates[0].content.parts[0].text);
                 
                 const commentEl = document.getElementById('my-market-commentary');
-<!-- ... existing code ... -->
+                safeSetText('my-commentary-text', aiData.correlationRisk);
+                if(commentEl) commentEl.classList.remove('hidden');
+
+                const portfolioSpeakBtn = document.getElementById('portfolio-speak-btn');
+                if(portfolioSpeakBtn) portfolioSpeakBtn.onclick = () => speakText(aiData.correlationRisk, portfolioSpeakBtn);
+
+                const updatedAssets = assets.map(asset => {
+                    const scanData = (aiData.results || []).find(r => r.ticker.toUpperCase() === asset.ticker.toUpperCase());
+                    if (scanData) { return { ...asset, verdict: scanData.verdict, advice: scanData.advice }; }
+                    return asset;
+                });
+                saveMyAssets(updatedAssets);
+                renderMyPortfolio();
+
+            } catch (error) {
+                console.error(error);
+                errorMsg.innerHTML = `スキャンに失敗しました:<br><span class="text-xs break-all">${error.message}</span><br><button onclick="resetApiKey()" class="mt-3 text-purple-400 underline font-bold text-sm hover:text-purple-300">キーを再入力する</button>`;
+                errorMsg.classList.remove('hidden');
+            } finally {
+                loadingPanel.classList.add('hidden');
+                loadingPanel.classList.remove('flex');
+            }
+        }
+
+        async function explainPriceMovement(ticker, btnElement, resultElement) {
+            const originalText = btnElement.innerHTML;
+            btnElement.innerHTML = `<i data-lucide="loader-2" class="w-3 h-3 mr-2 animate-spin text-amber-400"></i> 最新ニュースを検索中...`;
+            btnElement.disabled = true;
             resultElement.classList.add('hidden');
             lucide.createIcons();
 
@@ -118,7 +1017,38 @@
                 const answer = result.candidates[0].content.parts[0].text;
                 
                 resultElement.innerHTML = `<strong>💡 AIの解説:</strong><br>${answer}`;
-<!-- ... existing code ... -->
+                resultElement.classList.remove('hidden');
+            } catch (error) {
+                resultElement.innerHTML = `ニュースの取得に失敗しました。`;
+                resultElement.classList.remove('hidden');
+            } finally {
+                btnElement.innerHTML = originalText;
+                btnElement.disabled = false;
+                lucide.createIcons();
+            }
+        }
+
+        /* =========================================================
+           機能3: 企業カルテ (Deep Scan)
+        ========================================================= */
+        async function openDeepScanModal(ticker, companyName) {
+            safeSetText('modal-title', ticker);
+            safeSetText('modal-subtitle', companyName);
+            document.getElementById('modal-loading').classList.remove('hidden');
+            document.getElementById('modal-content-data').classList.add('hidden');
+            const errEl = document.getElementById('modal-error-message');
+            if(errEl) errEl.classList.add('hidden');
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.add('opacity-100'), 10);
+
+            // リアルタイム折れ線グラフ (安全なIframe方式)
+            const tvContainer = document.getElementById('tv-chart-container');
+            if(tvContainer) {
+                tvContainer.innerHTML = `<iframe src="https://s.tradingview.com/widgetembed/?symbol=${ticker}&interval=D&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=131722&theme=dark&style=3&timezone=Asia%2FTokyo&locale=ja" width="100%" height="100%" frameborder="0" allowtransparency="true" scrolling="no" allowfullscreen=""></iframe>`;
+            }
+
+            const loadingTexts = ["SNS感情を解析中...", "機関投資家の動向を照会中...", "テクニカル指標を分析中...", "未来のシナリオと注目イベントを生成中...", "AI総合評価チャートを算出中..."];
             let ltIdx = 0;
             if(loadingInterval) clearInterval(loadingInterval);
             loadingInterval = setInterval(() => { safeSetText('modal-loading-text', loadingTexts[ltIdx % loadingTexts.length]); ltIdx++; }, 1500);
@@ -127,7 +1057,36 @@
                 const payload = {
                     contents: [{ parts: [{ text: `銘柄「${ticker}」について深くGoogle検索し、以下の情報を完全な日本語でJSON出力してください。
 1. 専門家AIチームの議論と最終判断
-<!-- ... existing code ... -->
+2. 3つの未来シナリオ(Bull/Base/Bear)とその発生確率・ターゲット価格
+3. 今後数ヶ月の注目イベント(カタリスト)のタイムライン
+4. 裏データ(SNS感情,内部者取引,テクニカル,サプライチェーン)
+5. レーダーチャート用スコア(成長性,割安度,勢い,安全性,マクロ恩恵) 各10点満点
+6. 企業基本データ` }] }],
+                    systemInstruction: { parts: [{ text: "最高峰のアナリストAIとして、すべて自然な日本語に翻訳してJSONで出力してください。" }] },
+                    tools: [{ google_search: {} }],
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                geniusView: { type: "STRING" }, veteranView: { type: "STRING" }, macroView: { type: "STRING" }, quantView: { type: "STRING" },
+                                finalVerdict: { type: "OBJECT", properties: { decision: { type: "STRING" }, conclusion: { type: "STRING" } }, required: ["decision", "conclusion"] },
+                                scenarios: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        bull: { type: "OBJECT", properties: { probability: {type:"INTEGER"}, targetPrice: {type:"STRING"}, condition: {type:"STRING"} }, required: ["probability", "targetPrice"] },
+                                        base: { type: "OBJECT", properties: { probability: {type:"INTEGER"}, targetPrice: {type:"STRING"}, condition: {type:"STRING"} }, required: ["probability", "targetPrice"] },
+                                        bear: { type: "OBJECT", properties: { probability: {type:"INTEGER"}, targetPrice: {type:"STRING"}, condition: {type:"STRING"} }, required: ["probability", "targetPrice"] }
+                                    },
+                                    required: ["bull", "base", "bear"]
+                                },
+                                catalystTimeline: { type: "ARRAY", items: { type: "OBJECT", properties: { date: { type: "STRING" }, event: { type: "STRING" }, impact: { type: "STRING" } } } },
+                                alternativeData: { type: "OBJECT", properties: { sentiment: { type: "STRING" }, insider: { type: "STRING" }, technical: { type: "STRING" }, supplyChain: { type: "STRING" } } },
+                                radarScores: { type: "OBJECT", properties: { growth: {type:"INTEGER"}, value: {type:"INTEGER"}, momentum: {type:"INTEGER"}, safety: {type:"INTEGER"}, macroTailwind: {type:"INTEGER"} }, required: ["growth", "value", "momentum", "safety", "macroTailwind"] },
+                                businessModel: { type: "STRING" }, performance: { type: "STRING" }, strengthHighlight: { type: "STRING" },
+                                financialHealth: { type: "STRING" }, investmentActivities: { type: "STRING" }, shareholderReturn: { type: "STRING" }
+                            },
+                            required: ["geniusView", "veteranView", "macroView", "quantView", "finalVerdict", "radarScores"]
                         }
                     }
                 };
@@ -136,4 +1095,84 @@
                 clearInterval(loadingInterval);
                 if(!result || !result.candidates) throw new Error("無効なAPIレスポンス");
                 const data = JSON.parse(result.candidates[0].content.parts[0].text);
-<!-- ... existing code ... -->
+                
+                safeSetText('modal-genius-view', data.geniusView); safeSetText('modal-veteran-view', data.veteranView);
+                safeSetText('modal-macro-view', data.macroView); safeSetText('modal-quant-view', data.quantView);
+                
+                const badge = document.getElementById('modal-decision-badge');
+                if(badge && data.finalVerdict) {
+                    const decision = data.finalVerdict.decision || "不明";
+                    badge.textContent = decision;
+                    badge.className = 'px-5 py-2 rounded font-black text-sm border tracking-widest'; 
+                    if (decision.includes('BUY') || decision.includes('買')) badge.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/50');
+                    else if (decision.includes('HOLD') || decision.includes('待')) badge.classList.add('bg-slate-500/20', 'text-slate-300', 'border-slate-500/50');
+                    else badge.classList.add('bg-red-500/20', 'text-red-400', 'border-red-500/50');
+                }
+                
+                if(data.finalVerdict) safeSetText('modal-final-conclusion', data.finalVerdict.conclusion);
+
+                const modalSpeakBtn = document.getElementById('modal-speak-btn');
+                if(modalSpeakBtn && data.finalVerdict) {
+                    modalSpeakBtn.classList.remove('hidden');
+                    modalSpeakBtn.onclick = () => speakText(`専門家AIチームによる最終決断は、${data.finalVerdict.decision}です。${data.finalVerdict.conclusion}`, modalSpeakBtn);
+                }
+
+                if(data.scenarios) {
+                    if(data.scenarios.bull) { safeSetText('modal-bull-target', data.scenarios.bull.targetPrice); safeSetText('modal-bull-prob-txt', `${data.scenarios.bull.probability}%`); safeSetText('modal-bull-cond', data.scenarios.bull.condition); }
+                    if(data.scenarios.base) { safeSetText('modal-base-target', data.scenarios.base.targetPrice); safeSetText('modal-base-prob-txt', `${data.scenarios.base.probability}%`); safeSetText('modal-base-cond', data.scenarios.base.condition); }
+                    if(data.scenarios.bear) { safeSetText('modal-bear-target', data.scenarios.bear.targetPrice); safeSetText('modal-bear-prob-txt', `${data.scenarios.bear.probability}%`); safeSetText('modal-bear-cond', data.scenarios.bear.condition); }
+                    
+                    setTimeout(() => {
+                        const bullBar = document.getElementById('modal-bull-bar'); const baseBar = document.getElementById('modal-base-bar'); const bearBar = document.getElementById('modal-bear-bar');
+                        if (bullBar && data.scenarios.bull) bullBar.style.width = `${data.scenarios.bull.probability}%`;
+                        if (baseBar && data.scenarios.base) baseBar.style.width = `${data.scenarios.base.probability}%`;
+                        if (bearBar && data.scenarios.bear) bearBar.style.width = `${data.scenarios.bear.probability}%`;
+                    }, 300);
+                }
+
+                const tlContainer = document.getElementById('modal-timeline');
+                if(tlContainer) {
+                    tlContainer.innerHTML = '';
+                    if(data.catalystTimeline) {
+                        data.catalystTimeline.forEach(item => {
+                            const div = document.createElement('div'); div.className = 'timeline-item';
+                            div.innerHTML = `<div class="flex items-center gap-2 mb-1"><span class="text-xs font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded">${item.date}</span><span class="text-[10px] impact-${item.impact} border border-current px-1.5 rounded">重要度: ${item.impact}</span></div><div class="text-sm text-slate-200">${item.event}</div>`;
+                            tlContainer.appendChild(div);
+                        });
+                    }
+                }
+
+                if(data.alternativeData) { safeSetText('alt-sentiment', data.alternativeData.sentiment); safeSetText('alt-insider', data.alternativeData.insider); safeSetText('alt-technical', data.alternativeData.technical); safeSetText('alt-supply', data.alternativeData.supplyChain); }
+                if(data.radarScores) drawRadarChart(data.radarScores);
+
+                safeSetText('modal-business', data.businessModel); safeSetText('modal-performance', data.performance); safeSetText('modal-strength', data.strengthHighlight);
+                safeSetText('modal-financial', data.financialHealth); safeSetText('modal-investment', data.investmentActivities); safeSetText('modal-shareholder', data.shareholderReturn); 
+
+                document.getElementById('modal-loading').classList.add('hidden');
+                document.getElementById('modal-content-data').classList.remove('hidden');
+                document.getElementById('modal-content-data').classList.add('flex');
+            } catch (error) {
+                console.error(error);
+                if(loadingInterval) clearInterval(loadingInterval);
+                document.getElementById('modal-loading').classList.add('hidden');
+                const modalErrMsg = document.getElementById('modal-error-message');
+                if (modalErrMsg) { 
+                    modalErrMsg.innerHTML = `企業カルテの生成に失敗しました:<br><span class="text-xs break-all">${error.message}</span><br><button onclick="resetApiKey()" class="mt-3 px-3 py-1.5 bg-red-900/50 border border-red-500/50 rounded-lg text-white font-bold text-xs hover:bg-red-800 transition-colors inline-flex items-center"><i data-lucide="key" class="w-3 h-3 mr-1"></i> キーを再入力</button>`; 
+                    modalErrMsg.classList.remove('hidden'); 
+                    lucide.createIcons();
+                }
+            }
+        }
+
+        function drawRadarChart(scores) {
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            if (radarChartInstance) radarChartInstance.destroy();
+            const total = scores.growth + scores.value + scores.momentum + scores.safety + scores.macroTailwind;
+            let bgColor = 'rgba(168, 85, 247, 0.2)'; let borderColor = 'rgba(168, 85, 247, 1)';
+            if (total > 35) { bgColor = 'rgba(16, 185, 129, 0.2)'; borderColor = 'rgba(16, 185, 129, 1)'; } 
+            
+            radarChartInstance = new Chart(ctx, { type: 'radar', data: { labels: ['成長性', '割安度', '勢い(モメンタム)', '安全性', 'マクロ恩恵'], datasets: [{ label: 'AI 総合評価', data: [scores.growth, scores.value, scores.momentum, scores.safety, scores.macroTailwind], backgroundColor: bgColor, borderColor: borderColor, borderWidth: 2, pointBackgroundColor: borderColor, pointBorderColor: '#fff' }] }, options: { responsive: true, maintainAspectRatio: false, scales: { r: { angleLines: { color: 'rgba(255, 255, 255, 0.05)' }, grid: { color: 'rgba(255, 255, 255, 0.05)' }, pointLabels: { color: '#94a3b8', font: { family: 'Noto Sans JP', size: 10, weight: 'bold' } }, ticks: { display: false, min: 0, max: 10 } } }, plugins: { legend: { display: false } } } });
+        }
+    </script>
+</body>
+</html>
