@@ -1,5 +1,33 @@
 <!DOCTYPE html>
 <html lang="ja">
+<!-- 
+========================================================================
+  AI AUTO-PILOT - 開発・改修履歴（AI引継ぎ用コンテキスト）
+========================================================================
+  このファイルはAIとの対話によって反復的に開発された1ファイル完結型のWebアプリです。
+  次回以降の改修時は、このヘッダーコメントを読み込むことでスムーズな引継ぎが可能です。
+
+  【 バージョン・改修履歴 】
+  - v1~v4: 基礎構築、UIデザイン、パスワードロック、自動修復API通信
+  - v5: パフォーマンス最適化（日本株/米国株の選択制、3銘柄へ絞り込み）
+  - v6~v8 (安定性・レート制限対策強化):
+    ・429エラー（1分間/1日制限）を完全回避するためのペナルティリセット機能（強制65秒待機）
+    ・通常時の検索インターバルを20秒に設定
+    ・上限エラー時のメッセージ明確化
+  - v9 (TradingView TSE規約対応):
+    ・東京証券取引所（日本株）のチャート埋め込み制限エラーを回避するため、
+      日本株専用の美しいフォールバックUI（公式サイトへのリンクボタン）を実装。
+
+  【 技術スタック & アーキテクチャ 】
+  - Frontend: HTML5, Tailwind CSS (CDN), Vanilla JavaScript
+  - Icons/Charts: Lucide Icons (CDN), Chart.js (CDN)
+  - API: Google Gemini API (自動で利用可能な最新モデルを取得しフォールバック)
+  - Storage (localStorage): autopilot_api_key, autopilot_model, my_assets_v1
+
+  【 今後のユーザー要求・改修アイデア（TODO） 】
+  ・「高配当」「AI関連」などの投資テーマ選択機能の追加
+========================================================================
+-->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -117,7 +145,6 @@
 </head>
 <body class="min-h-screen flex flex-col relative">
 
-    <!-- 【NEW】パスワード（APIキー）入力画面 -->
     <div id="auth-overlay" class="fixed inset-0 bg-[#020617] z-[100] hidden items-center justify-center p-4 backdrop-blur-xl">
         <div class="glass-panel p-8 max-w-md w-full text-center relative overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)] border border-slate-700">
             <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
@@ -143,7 +170,6 @@
                     AUTO-PILOT<span class="ml-2 text-sm text-purple-400 font-bold hidden sm:inline"></span>
                 </h1>
             </div>
-            <!-- 【NEW】キーをリセット（ログアウト）するボタン -->
             <button onclick="resetApiKey()" class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition-colors" title="キーをリセット">
                 <i data-lucide="log-out" class="w-5 h-5"></i>
             </button>
@@ -171,7 +197,7 @@
                 <i data-lucide="brain" class="w-10 h-10 text-white absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></i>
             </div>
             <h3 class="text-2xl font-black mb-4 tracking-widest text-center text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500" id="loading-title">AI多段思考プロセスを実行中...</h3>
-            <p id="loading-text" class="text-slate-400 text-sm h-10 flex flex-col justify-center text-center max-w-md">ステップを初期化しています...</p>
+            <p id="loading-text" class="text-slate-400 text-sm h-12 flex flex-col justify-center text-center max-w-md">ステップを初期化しています...</p>
         </div>
 
         <div id="tab-discover" class="tab-content active gap-8">
@@ -185,10 +211,28 @@
                     今最も安全で利益が狙える「買い銘柄」を発掘します。
                 </p>
                 
-                <button onclick="startAutoPilotMultiStep()" class="btn-zenith text-white text-2xl font-black px-12 py-8 rounded-full inline-flex items-center justify-center w-full md:w-auto shadow-2xl">
+                <div class="flex justify-center gap-4 sm:gap-6 mb-8 relative z-10 w-full max-w-md mx-auto">
+                    <label class="cursor-pointer flex-1 flex items-center justify-center group bg-slate-900/50 px-4 py-3 rounded-xl border border-slate-700/50 hover:bg-slate-800 transition-all">
+                        <input type="radio" name="market-type" value="jp" class="hidden peer" checked>
+                        <div class="w-4 h-4 rounded-full border-2 border-slate-500 peer-checked:border-purple-500 peer-checked:bg-purple-500 mr-2 flex items-center justify-center transition-all shadow-[0_0_10px_rgba(168,85,247,0)] peer-checked:shadow-[0_0_10px_rgba(168,85,247,0.5)]">
+                            <div class="w-1.5 h-1.5 rounded-full bg-white opacity-0 peer-checked:opacity-100"></div>
+                        </div>
+                        <span class="text-sm md:text-base font-bold text-slate-400 peer-checked:text-white transition-colors tracking-wide whitespace-nowrap">🇯🇵 日本株 (3銘柄)</span>
+                    </label>
+                    
+                    <label class="cursor-pointer flex-1 flex items-center justify-center group bg-slate-900/50 px-4 py-3 rounded-xl border border-slate-700/50 hover:bg-slate-800 transition-all">
+                        <input type="radio" name="market-type" value="us" class="hidden peer">
+                        <div class="w-4 h-4 rounded-full border-2 border-slate-500 peer-checked:border-pink-500 peer-checked:bg-pink-500 mr-2 flex items-center justify-center transition-all shadow-[0_0_10px_rgba(236,72,153,0)] peer-checked:shadow-[0_0_10px_rgba(236,72,153,0.5)]">
+                            <div class="w-1.5 h-1.5 rounded-full bg-white opacity-0 peer-checked:opacity-100"></div>
+                        </div>
+                        <span class="text-sm md:text-base font-bold text-slate-400 peer-checked:text-white transition-colors tracking-wide whitespace-nowrap">🇺🇸 米国株 (3銘柄)</span>
+                    </label>
+                </div>
+
+                <button onclick="startAutoPilotMultiStep()" class="btn-zenith text-white text-2xl font-black px-12 py-6 rounded-full inline-flex items-center justify-center w-full md:w-auto shadow-2xl">
                     <i data-lucide="sparkles" class="w-8 h-8 mr-3"></i> 市場全体をスキャンする
                 </button>
-                <p class="mt-8 text-sm text-slate-500">※確実性を重視し、1銘柄ずつ丁寧に検索・分析します（約1〜2分かかります）</p>
+                <p class="mt-8 text-sm text-slate-500">※API制限回避のため、1銘柄ごとに20秒の待機時間を設けています。（約2分かかります）</p>
             </div>
 
             <div id="discover-results" class="hidden flex-col gap-8 opacity-0 transition-opacity duration-1000">
@@ -469,7 +513,7 @@
 
                 <div id="modal-content-data" class="hidden flex-col gap-8">
 
-                    <!-- リアルタイム折れ線グラフ (安全なIframe方式) -->
+                    <!-- 【v9】リアルタイム折れ線グラフ (日本株はフォールバックUIを表示) -->
                     <div class="w-full h-[300px] md:h-[400px] rounded-2xl overflow-hidden border border-slate-700/50 bg-[#131722] shadow-[0_0_20px_rgba(0,0,0,0.5)]" id="tv-chart-container">
                     </div>
 
@@ -548,24 +592,19 @@
     <!-- ===== スクリプト ===== -->
     <script>
         // --- 認証（パスワード）システム ---
-        // ここにAPIキーを直接書き込むのではなく、画面からの入力を受け取ります
         let apiKey = localStorage.getItem('autopilot_api_key') || "";
 
-        // 起動時にパスワードが保存されているかチェックする機能
         function checkAuth() {
             const overlay = document.getElementById('auth-overlay');
             if (!apiKey) {
-                // キーがなければロック画面を表示
                 overlay.classList.remove('hidden');
                 overlay.classList.add('flex');
             } else {
-                // キーがあればロック画面を隠す
                 overlay.classList.add('hidden');
                 overlay.classList.remove('flex');
             }
         }
 
-        // 入力されたパスワードを保存する機能
         function saveApiKey() {
             const input = document.getElementById('api-key-input').value.trim();
             if (input) {
@@ -575,7 +614,6 @@
             }
         }
 
-        // パスワードをリセット（ログアウト）する機能
         function resetApiKey() {
             localStorage.removeItem('autopilot_api_key');
             apiKey = "";
@@ -583,7 +621,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            checkAuth(); // 起動時に必ずチェック
+            checkAuth(); 
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
             } else {
@@ -630,8 +668,6 @@
 
         document.getElementById('close-modal-btn').addEventListener('click', () => { stopSpeaking(); modal.classList.remove('opacity-100'); setTimeout(() => modal.classList.add('hidden'), 300); });
         
-        // 【究極の自動修復通信システム】
-        // Googleサーバーに直接「いま使えるモデル」を問い合わせて自動取得
         async function getAvailableModel() {
             const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
             const response = await fetch(url);
@@ -649,10 +685,8 @@
 
             if (validModels.length === 0) throw new Error("利用可能なGeminiモデルが見つかりません。");
 
-            // 最新の高速モデルを優先的に選択
             const preferred = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
             for (const p of preferred) {
-                // visionや8bなど特殊用途を除外して安定版を取得
                 const found = validModels.find(m => m.includes(p) && !m.includes('vision') && !m.includes('8b'));
                 if (found) return found;
             }
@@ -666,7 +700,7 @@
                 localStorage.setItem('autopilot_model', model);
             }
 
-            const delays = [3000, 6000, 10000];
+            const defaultDelays = [5000, 10000, 20000];
             let lastError = null;
 
             for (let i = 0; i < retries; i++) {
@@ -674,7 +708,6 @@
                     let url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
                     let response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 
-                    // 記録していたモデルが古くなって404になった場合は、最新リストを再取得してリトライ
                     if (response.status === 404) {
                         console.log(`モデル ${model} が見つかりません。最新のモデルを再取得します...`);
                         model = await getAvailableModel();
@@ -690,11 +723,14 @@
                     }
 
                     if (response.status === 401) throw new Error("APIキーが無効です");
+                    
+                    if (response.status === 429) {
+                        throw new Error("429 Too Many Requests");
+                    }
 
                     const errText = await response.text();
                     console.warn(`[${model}] 通信エラー (試行 ${i+1}/${retries}):`, errText);
 
-                    // 検索ツール制限(400, 403)に引っかかった場合、検索ツールを外して再チャレンジ（自己修復）
                     if ((response.status === 400 || response.status === 403) && payload.tools) {
                         console.log(`[${model}] 検索ツールを無効化して自己修復実行...`);
                         const fallbackPayload = { ...payload };
@@ -713,8 +749,20 @@
                     if (e.message.includes("APIキーが無効")) throw e;
                     
                     if (i < retries - 1) {
-                        console.log(`負荷回避のため ${delays[i]/1000}秒待機して再試行します...`);
-                        await new Promise(r => setTimeout(r, delays[i]));
+                        const isRateLimit = e.message.includes("429");
+                        const waitTime = isRateLimit ? 65000 : defaultDelays[i];
+                        
+                        console.log(`負荷回避のため ${waitTime/1000}秒待機して再試行します...`);
+                        
+                        if (isRateLimit && document.getElementById('loading-text')) {
+                            const loadingTextEl = document.getElementById('loading-text');
+                            for (let s = waitTime / 1000; s > 0; s--) {
+                                loadingTextEl.innerHTML = `<span class="text-red-400 font-bold bg-red-900/30 px-4 py-2 rounded-xl border border-red-500/50 inline-block text-center mt-2">API無料枠のスピード制限を検知しました。<br>自己修復のため <b>${s}秒</b> 待機して再開します...</span>`;
+                                await new Promise(r => setTimeout(r, 1000));
+                            }
+                        } else {
+                            await new Promise(r => setTimeout(r, waitTime));
+                        }
                     }
                 }
             }
@@ -735,14 +783,24 @@
             document.getElementById('discover-results').classList.add('hidden');
             errorMsg.classList.add('hidden');
 
+            const marketType = document.querySelector('input[name="market-type"]:checked').value;
+            let marketPrompt = "";
+            
+            if (marketType === "jp") {
+                marketPrompt = "今初心者が買うべき有望な【日本株を3銘柄】厳選して教えてください。ティッカーシンボルは「7203」のように4桁の数字で出力してください。";
+                loadingText.innerHTML = "ステップ1: 日本市場のトレンドと有望な3銘柄を抽出中...<br><span class='text-xs text-slate-500'>国内市場全体を俯瞰しています</span>";
+            } else {
+                marketPrompt = "今初心者が買うべき有望な【米国株を3銘柄】厳選して教えてください。ティッカーシンボルは「AAPL」のようにアルファベットで出力してください。";
+                loadingText.innerHTML = "ステップ1: 米国市場のトレンドと有望な3銘柄を抽出中...<br><span class='text-xs text-slate-500'>米国市場全体を俯瞰しています</span>";
+            }
+
             loadingTitle.textContent = "AI多段思考プロセスを実行中...";
-            loadingText.innerHTML = "ステップ1: 市場のトレンドと有望な6銘柄を抽出中...<br><span class='text-xs text-slate-500'>市場全体を俯瞰しています</span>";
             loadingPanel.classList.remove('hidden');
             loadingPanel.classList.add('flex');
 
             try {
                 const step1Payload = {
-                    contents: [{ parts: [{ text: "最新の経済ニュースと機関投資家のレポートを分析し、1. 資金流入(HOT)と流出(COLD)のヒートマップ、2. 今初心者が買うべき有望な【米国株を3銘柄】と【日本株を3銘柄】の合計6銘柄を厳選して教えてください。ティッカーシンボルは米国株は「AAPL」、日本株は「7203」のように出力してください。" }] }],
+                    contents: [{ parts: [{ text: `最新の経済ニュースと機関投資家のレポートを分析し、1. 資金流入(HOT)と流出(COLD)のヒートマップ、2. ${marketPrompt}` }] }],
                     systemInstruction: { parts: [{ text: "必ずJSONで出力してください。" }] },
                     tools: [{ google_search: {} }],
                     generationConfig: {
@@ -752,7 +810,7 @@
                             properties: {
                                 marketSignal: { type: "OBJECT", properties: { status: { type: "STRING" }, reason: { type: "STRING" } }, required: ["status", "reason"] },
                                 sectorHeatmap: { type: "ARRAY", items: { type: "OBJECT", properties: { sectorName: { type: "STRING" }, heat: { type: "STRING" }, reason: { type: "STRING" } } } },
-                                selectedTickers: { type: "ARRAY", items: { type: "STRING" }, description: "選ばれた6つのティッカーシンボル" }
+                                selectedTickers: { type: "ARRAY", items: { type: "STRING" }, description: "選ばれた3つのティッカーシンボル" }
                             },
                             required: ["marketSignal", "sectorHeatmap", "selectedTickers"]
                         }
@@ -761,13 +819,14 @@
 
                 const step1Result = await callGeminiAPI(step1Payload, 3);
                 const step1Data = JSON.parse(step1Result.candidates[0].content.parts[0].text);
-                const tickersArr = step1Data.selectedTickers.slice(0, 6);
+                
+                const tickersArr = step1Data.selectedTickers.slice(0, 3);
 
                 let finalPortfolio = [];
                 let completedCount = 0;
 
-                // 【確実性重視】6銘柄を1つずつ個別に検索・分析するループ処理
-                for (const ticker of tickersArr) {
+                for (let idx = 0; idx < tickersArr.length; idx++) {
+                    const ticker = tickersArr[idx];
                     loadingText.innerHTML = `ステップ2: [ <span class='text-purple-400 font-bold'>${ticker}</span> ] の最新株価とシナリオを検索中...<br><span class='text-xs text-amber-400'>（${completedCount}/${tickersArr.length} 銘柄完了）確実な情報を取得しています</span>`;
                     
                     const step2Payload = {
@@ -781,7 +840,7 @@
                                 properties: {
                                     assetType: { type: "STRING" }, sector: { type: "STRING" },
                                     ticker: { type: "STRING" }, companyName: { type: "STRING" }, currentPrice: { type: "STRING" },
-                                    allocationPercent: { type: "INTEGER", description:"推奨配分比率（後で自動調整されます）" }, simpleReason: { type: "STRING" }, actionInstruction: { type: "STRING" },
+                                    allocationPercent: { type: "INTEGER", description:"推奨配分比率" }, simpleReason: { type: "STRING" }, actionInstruction: { type: "STRING" },
                                     takeProfit: { type: "STRING", description:"数値で" }, stopLoss: { type: "STRING", description:"数値で" },
                                     scenarios: {
                                         type: "OBJECT",
@@ -798,19 +857,21 @@
                     };
 
                     try {
-                        // 1銘柄につきリトライ3回で確実に取得する
                         const step2Result = await callGeminiAPI(step2Payload, 3);
                         const itemData = JSON.parse(step2Result.candidates[0].content.parts[0].text);
                         finalPortfolio.push(itemData);
                     } catch (e) {
                         console.error(`[${ticker}] の詳細分析に失敗しました。スキップします。`, e);
-                        // 1つ失敗しても全体を止めない
                     }
 
                     completedCount++;
-                    // 短期的な検索負荷（429エラー）を避けるため、次の銘柄の前に5秒待機
+                    
                     if (completedCount < tickersArr.length) {
-                        await new Promise(r => setTimeout(r, 5000));
+                        for (let s = 20; s > 0; s--) {
+                            loadingText.innerHTML = `ステップ2: 次の銘柄の検索準備中...<br><span class='text-xs text-amber-400 bg-amber-900/30 px-3 py-1 rounded-full border border-amber-500/30 inline-block mt-2'><i data-lucide="shield-alert" class="w-3 h-3 inline mr-1 -mt-0.5"></i> 1分間のAPI制限を回避するため <b>${s}秒</b> 待機しています（${completedCount}/${tickersArr.length} 完了）</span>`;
+                            if (s === 20) lucide.createIcons();
+                            await new Promise(r => setTimeout(r, 1000));
+                        }
                     }
                 }
 
@@ -818,7 +879,6 @@
                     throw new Error("すべての銘柄の分析に失敗しました。時間を置いてやり直してください。");
                 }
 
-                // 取得できた銘柄だけで、配分の合計が100%になるように再計算
                 let totalAlloc = finalPortfolio.reduce((sum, item) => sum + (item.allocationPercent || 0), 0);
                 if (totalAlloc === 0) {
                     finalPortfolio.forEach(item => item.allocationPercent = Math.floor(100 / finalPortfolio.length));
@@ -828,7 +888,6 @@
                     });
                 }
                 
-                // 丸め誤差の調整 (合計をピッタリ100%にする)
                 let newTotal = finalPortfolio.reduce((sum, item) => sum + item.allocationPercent, 0);
                 if (newTotal !== 100 && finalPortfolio.length > 0) {
                      finalPortfolio[0].allocationPercent += (100 - newTotal);
@@ -843,7 +902,7 @@
                 if (error.message.includes("APIキーが無効") || error.message.includes("401")) {
                     errorMsg.innerHTML = `APIキー（パスワード）が間違っています。<br><button onclick="resetApiKey()" class="mt-4 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white font-bold text-sm hover:bg-slate-700 transition-colors inline-flex items-center"><i data-lucide="key" class="w-4 h-4 mr-2"></i> キーを再入力する</button>`;
                 } else if (error.message.includes("429")) {
-                    errorMsg.innerHTML = `AIの処理制限（429エラー）に達しました。無料枠のスピード制限を超えたため、1〜2分待ってから再度お試しください。<br><span class="text-xs text-slate-400 mt-2 block">※6銘柄の連続検索は負荷が高いため、AIに休憩を挟ませています。</span>`;
+                    errorMsg.innerHTML = `AIの処理制限（429エラー）に達しました。<br>システム側で最大限の回避・復旧を試みましたが、無料枠の限界（1日の利用上限など）を超えてしまいました。<br><span class="text-xs text-slate-400 mt-2 block">対策: 数時間置いてから再度お試しいただくか、別のGoogleアカウントで新しいAPIキーを発行してください。</span>`;
                 } else {
                     errorMsg.innerHTML = `AIの処理中にエラーが発生しました:<br><span class="text-xs break-all text-red-400 font-mono">${error.message}</span><br><br>時間をおいて再度お試しください。`;
                 }
@@ -1143,17 +1202,39 @@
             modal.classList.remove('hidden');
             setTimeout(() => modal.classList.add('opacity-100'), 10);
 
-            // 日本株のティッカーをTradingView用に自動変換 (例: 7203 -> TSE:7203)
+            // 【v9】日本株判定とフォールバックUIの実装
             let tvTicker = ticker;
+            let isJapanStock = false;
+            
             if (/^\d{4}$/.test(ticker)) {
                 tvTicker = `TSE:${ticker}`;
+                isJapanStock = true;
             } else if (/^\d{4}\.T$/i.test(ticker)) {
                 tvTicker = `TSE:${ticker.replace(/\.T$/i, '')}`;
+                isJapanStock = true;
             }
 
             const tvContainer = document.getElementById('tv-chart-container');
             if(tvContainer) {
-                tvContainer.innerHTML = `<iframe src="https://s.tradingview.com/widgetembed/?symbol=${tvTicker}&interval=D&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=131722&theme=dark&style=3&timezone=Asia%2FTokyo&locale=ja" width="100%" height="100%" frameborder="0" allowtransparency="true" scrolling="no" allowfullscreen=""></iframe>`;
+                if (isJapanStock) {
+                    // 日本株の場合は外部リンクセルを表示
+                    tvContainer.innerHTML = `
+                        <div class="w-full h-full flex flex-col items-center justify-center bg-[#0f172a] text-slate-300 p-6 text-center border-2 border-dashed border-slate-700/50 rounded-2xl">
+                            <div class="bg-slate-800/50 p-4 rounded-full mb-4">
+                                <i data-lucide="line-chart" class="w-10 h-10 text-slate-400"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-white mb-2 tracking-wider">日本株チャートは外部表示となります</h3>
+                            <p class="text-xs text-slate-400 mb-6 max-w-sm leading-relaxed">東京証券取引所（TSE）のデータ規約により、日本株のリアルタイムチャートは外部サイトへの埋め込みが制限されています。</p>
+                            <a href="https://jp.tradingview.com/symbols/${tvTicker}/" target="_blank" rel="noopener noreferrer" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-[0_0_15px_rgba(37,99,235,0.4)] hover:shadow-[0_0_25px_rgba(37,99,235,0.6)] flex items-center transform hover:-translate-y-1">
+                                <i data-lucide="external-link" class="w-4 h-4 mr-2"></i> TradingView公式サイトで開く
+                            </a>
+                        </div>
+                    `;
+                    setTimeout(() => lucide.createIcons(), 50);
+                } else {
+                    // 米国株などは通常通りiframeで表示
+                    tvContainer.innerHTML = `<iframe src="https://s.tradingview.com/widgetembed/?symbol=${tvTicker}&interval=D&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=131722&theme=dark&style=3&timezone=Asia%2FTokyo&locale=ja" width="100%" height="100%" frameborder="0" allowtransparency="true" scrolling="no" allowfullscreen=""></iframe>`;
+                }
             }
 
             const loadingTexts = ["SNS感情を解析中...", "機関投資家の動向を照会中...", "テクニカル指標を分析中...", "未来のシナリオと注目イベントを生成中...", "AI総合評価チャートを算出中..."];
