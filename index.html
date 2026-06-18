@@ -623,49 +623,72 @@
 
         document.getElementById('close-modal-btn').addEventListener('click', () => { stopSpeaking(); modal.classList.remove('opacity-100'); setTimeout(() => modal.classList.add('hidden'), 300); });
         
-        // 【重要】絶対に止まらない自動修復通信システム
-        async function callGeminiAPI(payload) {
-            // 最新のAIモデルから順番に接続を試し、一番安定して動くものを自動選択します
-            const models = [
-                'gemini-2.5-flash-preview-09-2025',
-                'gemini-2.0-flash-exp',
-                'gemini-1.5-flash-latest',
-                'gemini-1.5-flash',
-                'gemini-1.5-pro'
-            ];
-            let lastError = null;
-
-            for (const model of models) {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-                try {
-                    const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                    if (response.ok) return await response.json();
-                    
-                    const errText = await response.text();
-                    console.warn(`[${model}] エラー検知:`, errText);
-                    lastError = new Error(`モデル[${model}]が応答しませんでした`);
-                    
-                    if (response.status === 401) {
-                         lastError = new Error(`APIキーが無効です。正しいキーを入力してください。`);
-                         break; // 鍵が違う場合は他のモデルを試しても無駄なので終了
-                    }
-
-                    // 検索ツール制限に引っかかった場合、検索ツールを外して再チャレンジ（自己修復）
-                    if ((response.status === 400 || response.status === 404 || response.status === 403) && payload.tools) {
-                        const fallbackPayload = { ...payload };
-                        delete fallbackPayload.tools; // 検索ツールを削除してAIの知識のみで勝負
-                        console.log(`[${model}] 検索ツールを無効化して自己修復実行...`);
-                        const fbResponse = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fallbackPayload) });
-                        if (fbResponse.ok) return await fbResponse.json();
-                        
-                        const fbErrText = await fbResponse.text();
-                        lastError = new Error(`修復通信エラー (${fbResponse.status}): ${fbErrText}`);
-                    }
-                } catch (e) {
-                    lastError = e;
-                }
+        // 【究極の自動修復通信システム】
+        // Googleサーバーに直接「いま使えるモデル」を問い合わせて自動取得
+        async function getAvailableModel() {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+            const response = await fetch(url);
+            if (!response.ok) {
+                if (response.status === 401) throw new Error("APIキーが無効です。正しいキーを入力してください。");
+                throw new Error(`モデル一覧の取得に失敗しました (${response.status})`);
             }
-            throw lastError;
+            const data = await response.json();
+            
+            const validModels = data.models.filter(m => 
+                m.name.includes('gemini') && 
+                m.supportedGenerationMethods && 
+                m.supportedGenerationMethods.includes('generateContent')
+            ).map(m => m.name.replace('models/', ''));
+
+            if (validModels.length === 0) throw new Error("利用可能なGeminiモデルが見つかりません。");
+
+            // 最新の高速モデルを優先的に選択
+            const preferred = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+            for (const p of preferred) {
+                const found = validModels.find(m => m.includes(p));
+                if (found) return found;
+            }
+            return validModels[0];
+        }
+
+        async function callGeminiAPI(payload) {
+            let model = localStorage.getItem('autopilot_model');
+            if (!model) {
+                model = await getAvailableModel();
+                localStorage.setItem('autopilot_model', model);
+            }
+
+            let url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            
+            let response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            
+            // 記録していたモデルが古くなって404になった場合は、再取得してリトライ
+            if (response.status === 404) {
+                model = await getAvailableModel();
+                localStorage.setItem('autopilot_model', model);
+                url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            }
+
+            if (response.ok) return await response.json();
+            if (response.status === 401) throw new Error("APIキーが無効です。正しいキーを入力してください。");
+
+            const errText = await response.text();
+            console.warn(`[${model}] エラー検知:`, errText);
+            
+            // 検索ツール制限(400, 403)に引っかかった場合、検索ツールを外して再チャレンジ（自己修復）
+            if ((response.status === 400 || response.status === 403) && payload.tools) {
+                const fallbackPayload = { ...payload };
+                delete fallbackPayload.tools; // 検索ツールを削除してAIの知識のみで勝負
+                console.log(`[${model}] 検索ツールを無効化して自己修復実行...`);
+                const fbResponse = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fallbackPayload) });
+                if (fbResponse.ok) return await fbResponse.json();
+                
+                const fbErrText = await fbResponse.text();
+                throw new Error(`修復通信エラー (${fbResponse.status}): ${fbErrText}`);
+            }
+            
+            throw new Error(`APIエラー (${response.status}): ${errText}`);
         }
 
         function extractNumber(str) {
