@@ -625,8 +625,14 @@
         
         // 【重要】絶対に止まらない自動修復通信システム
         async function callGeminiAPI(payload) {
-            // flash-latestを優先し、だめならflashへフォールバック
-            const models = ['gemini-1.5-flash-latest', 'gemini-1.5-flash'];
+            // 最新のAIモデルから順番に接続を試し、一番安定して動くものを自動選択します
+            const models = [
+                'gemini-2.5-flash-preview-09-2025',
+                'gemini-2.0-flash-exp',
+                'gemini-1.5-flash-latest',
+                'gemini-1.5-flash',
+                'gemini-1.5-pro'
+            ];
             let lastError = null;
 
             for (const model of models) {
@@ -637,22 +643,23 @@
                     
                     const errText = await response.text();
                     console.warn(`[${model}] エラー検知:`, errText);
-                    lastError = new Error(`通信エラー (${response.status})`);
+                    lastError = new Error(`モデル[${model}]が応答しませんでした`);
                     
+                    if (response.status === 401) {
+                         lastError = new Error(`APIキーが無効です。正しいキーを入力してください。`);
+                         break; // 鍵が違う場合は他のモデルを試しても無駄なので終了
+                    }
+
                     // 検索ツール制限に引っかかった場合、検索ツールを外して再チャレンジ（自己修復）
                     if ((response.status === 400 || response.status === 404 || response.status === 403) && payload.tools) {
                         const fallbackPayload = { ...payload };
                         delete fallbackPayload.tools; // 検索ツールを削除してAIの知識のみで勝負
-                        console.log("検索ツールを無効化して自己修復実行...");
+                        console.log(`[${model}] 検索ツールを無効化して自己修復実行...`);
                         const fbResponse = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fallbackPayload) });
                         if (fbResponse.ok) return await fbResponse.json();
                         
                         const fbErrText = await fbResponse.text();
                         lastError = new Error(`修復通信エラー (${fbResponse.status}): ${fbErrText}`);
-                    } else if (response.status === 401) {
-                         // 401エラー（鍵の間違い）の場合はループを抜けてユーザーに知らせる
-                         lastError = new Error(`APIキーが無効です。正しいキーを入力してください。`);
-                         break;
                     }
                 } catch (e) {
                     lastError = e;
