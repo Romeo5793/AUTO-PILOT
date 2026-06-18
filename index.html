@@ -117,6 +117,22 @@
 </head>
 <body class="min-h-screen flex flex-col relative">
 
+    <!-- 【NEW】パスワード（APIキー）入力画面 -->
+    <div id="auth-overlay" class="fixed inset-0 bg-[#020617] z-[100] hidden items-center justify-center p-4 backdrop-blur-xl">
+        <div class="glass-panel p-8 max-w-md w-full text-center relative overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)] border border-slate-700">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+            <div class="bg-slate-900/80 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner border border-slate-700/50">
+                <i data-lucide="key" class="w-10 h-10 text-purple-400"></i>
+            </div>
+            <h2 class="text-2xl md:text-3xl font-black text-white mb-2 tracking-tight">システム・ロック解除</h2>
+            <p class="text-sm text-slate-400 mb-8 leading-relaxed">管理者から渡された<br>「アクセスキー」を入力してください。</p>
+            <input type="password" id="api-key-input" placeholder="AIza..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-4 text-white focus:outline-none focus:border-purple-500 mb-6 font-mono text-sm shadow-inner transition-colors">
+            <button onclick="saveApiKey()" class="btn-zenith text-white font-bold py-4 px-6 rounded-xl w-full flex items-center justify-center text-lg tracking-wider">
+                <i data-lucide="unlock" class="w-5 h-5 mr-2"></i> ロックを解除する
+            </button>
+        </div>
+    </div>
+
     <header class="p-0 border-b border-white/5 sticky top-0 z-30 bg-[#020617]/80 backdrop-blur-xl">
         <div class="container mx-auto max-w-7xl px-4 md:px-6 py-4 flex justify-between items-center">
             <div class="flex items-center space-x-3 group cursor-pointer">
@@ -526,14 +542,37 @@
     </div>
 
     <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        let apiKey = urlParams.get('key') || localStorage.getItem('autopilot_api_key') || "";
-        if (urlParams.get('key')) {
-            localStorage.setItem('autopilot_api_key', apiKey);
-            window.history.replaceState(null, null, window.location.pathname);
+        // --- 認証（パスワード）システム ---
+        let apiKey = localStorage.getItem('autopilot_api_key') || "";
+
+        function checkAuth() {
+            const overlay = document.getElementById('auth-overlay');
+            if (!apiKey) {
+                overlay.classList.remove('hidden');
+                overlay.classList.add('flex');
+            } else {
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+            }
+        }
+
+        function saveApiKey() {
+            const input = document.getElementById('api-key-input').value.trim();
+            if (input) {
+                apiKey = input;
+                localStorage.setItem('autopilot_api_key', apiKey);
+                checkAuth();
+            }
+        }
+
+        function resetApiKey() {
+            localStorage.removeItem('autopilot_api_key');
+            apiKey = "";
+            location.reload();
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            checkAuth(); // 起動時にキーがあるかチェック
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
             } else {
@@ -617,7 +656,7 @@
             loadingPanel.classList.add('flex');
 
             try {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
                 
                 const step1Payload = {
                     contents: [{ parts: [{ text: "最新の経済ニュースと機関投資家のレポートを分析し、1. 資金流入(HOT)と流出(COLD)のヒートマップ、2. 今初心者が買うべき有望な米国株または日本株の『ティッカーシンボル(例: AAPL, 7203)』を3つ厳選して教えてください。" }] }],
@@ -687,9 +726,10 @@
 
             } catch (error) {
                 console.error(error);
-                errorMsg.innerHTML = `エラーが発生しました:<br><span class="text-xs break-all">${error.message}</span><br><br>APIキーが正しいか、または有効か確認してください。`;
+                errorMsg.innerHTML = `エラーが発生しました:<br><span class="text-xs break-all">${error.message}</span><br><br>アクセスキー（パスワード）が間違っている可能性があります。<br><button onclick="resetApiKey()" class="mt-4 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white font-bold text-sm hover:bg-slate-700 transition-colors inline-flex items-center"><i data-lucide="key" class="w-4 h-4 mr-2"></i> キーを再入力する</button>`;
                 errorMsg.classList.remove('hidden');
                 document.getElementById('intro-panel').style.display = 'block';
+                lucide.createIcons();
             } finally {
                 loadingPanel.classList.add('hidden');
                 loadingPanel.classList.remove('flex');
@@ -897,7 +937,7 @@
             const tickersStr = assets.map(a => a.ticker).join(', ');
 
             try {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
                 const payload = {
                     contents: [{ parts: [{ text: `以下の保有銘柄リストについて、最新の決算、マクロ経済の動向などを深く検索し、1.アクション判定(日本語)、2.「相関性・偏りリスク」の診断を行ってください。銘柄: ${tickersStr}` }] }],
                     systemInstruction: { parts: [{ text: "プロのポートフォリオマネージャーとしてJSONで出力。" }] },
@@ -929,7 +969,7 @@
 
             } catch (error) {
                 console.error(error);
-                errorMsg.innerHTML = `スキャンに失敗しました:<br><span class="text-xs break-all">${error.message}</span>`;
+                errorMsg.innerHTML = `スキャンに失敗しました:<br><span class="text-xs break-all">${error.message}</span><br><button onclick="resetApiKey()" class="mt-3 text-purple-400 underline font-bold text-sm hover:text-purple-300">キーを再入力する</button>`;
                 errorMsg.classList.remove('hidden');
             } finally {
                 loadingPanel.classList.add('hidden');
@@ -945,7 +985,7 @@
             lucide.createIcons();
 
             try {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
                 const payload = {
                     contents: [{ parts: [{ text: `銘柄「${ticker}」の今日の株価がなぜ動いているのか（上がっている、あるいは下がっている理由）を検索し、投資初心者に向けて1〜2文で優しく教えてください。` }] }],
                     systemInstruction: { parts: [{ text: "優しく分かりやすい口調で。プレーンテキストで出力。" }] },
@@ -994,7 +1034,7 @@
             loadingInterval = setInterval(() => { safeSetText('modal-loading-text', loadingTexts[ltIdx % loadingTexts.length]); ltIdx++; }, 1500);
 
             try {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
                 const payload = {
                     contents: [{ parts: [{ text: `銘柄「${ticker}」について深くGoogle検索し、以下の情報を完全な日本語でJSON出力してください。
 1. 専門家AIチームの議論と最終判断
@@ -1097,7 +1137,11 @@
                 if(loadingInterval) clearInterval(loadingInterval);
                 document.getElementById('modal-loading').classList.add('hidden');
                 const modalErrMsg = document.getElementById('modal-error-message');
-                if (modalErrMsg) { modalErrMsg.innerHTML = `企業カルテの生成に失敗しました:<br><span class="text-xs break-all">${error.message}</span>`; modalErrMsg.classList.remove('hidden'); }
+                if (modalErrMsg) { 
+                    modalErrMsg.innerHTML = `企業カルテの生成に失敗しました:<br><span class="text-xs break-all">${error.message}</span><br><button onclick="resetApiKey()" class="mt-3 px-3 py-1.5 bg-red-900/50 border border-red-500/50 rounded-lg text-white font-bold text-xs hover:bg-red-800 transition-colors inline-flex items-center"><i data-lucide="key" class="w-3 h-3 mr-1"></i> キーを再入力</button>`; 
+                    modalErrMsg.classList.remove('hidden'); 
+                    lucide.createIcons();
+                }
             }
         }
 
