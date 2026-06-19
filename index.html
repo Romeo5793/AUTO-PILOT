@@ -1,31 +1,5 @@
 <!DOCTYPE html>
 <html lang="ja">
-<!-- 
-========================================================================
-  AI AUTO-PILOT - 開発・改修履歴（AI引継ぎ用コンテキスト）
-========================================================================
-  【 バージョン・改修履歴 】
-  - v1~v4: 基礎構築、UIデザイン、パスワードロック、自動修復API通信
-  - v5: パフォーマンス最適化（日本株/米国株の選択制、3銘柄へ絞り込み）
-  - v6~v8: レート制限対策（429エラー回避のペナルティリセット機能、20秒待機）
-  - v9: TradingView TSE規約対応（日本株専用フォールバックUI実装）
-  - v10: APIキー入力エラー対応（400エラー検知と再入力ボタン）
-  - v11: 通貨表示対応（¥ / $ の自動フォーマット）
-  - v12: 全機能の完全再統合（ベースコードの先祖返りを修正）
-  - v13: API節約機能（1日1回推奨の注意書き、前回履歴の読み込み機能、429上限エラーのハンドリング強化）
-  - v14: エラー判定の修正（検索ツール由来の400エラーをAPIキーエラーと誤認し、自己修復機能が発動しなかった問題を修正）
-  - v15: 株価取得の精度向上（今日の日付を渡し、市場に応じた厳密な株価検索プロンプトを適用）
-  - v16: 究極のAPI節約モード（銘柄ごとの個別検索ループを廃止し、市場分析と3銘柄の詳細を「1回の通信」で一括取得するバッチ処理に改修。API消費量を1/4に削減し、待機時間を劇的に短縮）
-  - v17: UI微調整（テスト用の説明書きを削除し、ヘッダーロゴにバージョンを表示）
-  - v18: 投資テーマ選択機能を追加（高配当、グロース、バリューなど戦略に応じたAI発掘が可能に）
-  - v19: UI微調整（「現在の相場状況」のテキストが見切れないよう、スクロール対応を追加）
-
-  【 技術スタック & アーキテクチャ 】
-  - Frontend: HTML5, Tailwind CSS, Vanilla JavaScript
-  - Icons/Charts: Lucide Icons, Chart.js
-  - API: Google Gemini API
-========================================================================
--->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -155,7 +129,7 @@
                     <i data-lucide="infinity" class="w-6 h-6 text-white"></i>
                 </div>
                 <h1 class="text-xl md:text-2xl font-black en-font tracking-tighter text-white">
-                    AUTO-PILOT<span class="ml-2 text-sm text-purple-400 font-bold hidden sm:inline">v19</span>
+                    AUTO-PILOT<span class="ml-2 text-sm text-purple-400 font-bold hidden sm:inline">v28</span>
                 </h1>
             </div>
             <button onclick="resetApiKey()" class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition-colors" title="キーをリセット">
@@ -200,25 +174,33 @@
                 </p>
 
                 <!-- 市場選択 -->
-                <div class="flex justify-center gap-4 sm:gap-6 mb-6 relative z-10 w-full max-w-md mx-auto">
-                    <label class="cursor-pointer flex-1 flex items-center justify-center group bg-slate-900/50 px-4 py-3 rounded-xl border border-slate-700/50 hover:bg-slate-800 transition-all">
-                        <input type="radio" name="market-type" value="jp" class="hidden peer" checked>
-                        <div class="w-4 h-4 rounded-full border-2 border-slate-500 peer-checked:border-purple-500 peer-checked:bg-purple-500 mr-2 flex items-center justify-center transition-all shadow-[0_0_10px_rgba(168,85,247,0)] peer-checked:shadow-[0_0_10px_rgba(168,85,247,0.5)]">
-                            <div class="w-1.5 h-1.5 rounded-full bg-white opacity-0 peer-checked:opacity-100"></div>
-                        </div>
-                        <span class="text-sm md:text-base font-bold text-slate-400 peer-checked:text-white transition-colors tracking-wide whitespace-nowrap">🇯🇵 日本株 (3銘柄)</span>
-                    </label>
-                    
-                    <label class="cursor-pointer flex-1 flex items-center justify-center group bg-slate-900/50 px-4 py-3 rounded-xl border border-slate-700/50 hover:bg-slate-800 transition-all">
-                        <input type="radio" name="market-type" value="us" class="hidden peer">
-                        <div class="w-4 h-4 rounded-full border-2 border-slate-500 peer-checked:border-pink-500 peer-checked:bg-pink-500 mr-2 flex items-center justify-center transition-all shadow-[0_0_10px_rgba(236,72,153,0)] peer-checked:shadow-[0_0_10px_rgba(236,72,153,0.5)]">
-                            <div class="w-1.5 h-1.5 rounded-full bg-white opacity-0 peer-checked:opacity-100"></div>
-                        </div>
-                        <span class="text-sm md:text-base font-bold text-slate-400 peer-checked:text-white transition-colors tracking-wide whitespace-nowrap">🇺🇸 米国株 (3銘柄)</span>
-                    </label>
+                <div class="mb-6 relative z-10 w-full max-w-lg mx-auto">
+                    <div class="grid grid-cols-3 gap-3">
+                        <label class="cursor-pointer text-center group">
+                            <input type="radio" name="market-type" value="global" class="hidden peer" checked>
+                            <div class="bg-slate-900/50 border border-slate-700/50 peer-checked:border-white peer-checked:bg-slate-800 px-2 py-3 rounded-xl transition-all peer-checked:shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+                                <span class="text-sm md:text-base font-bold text-slate-400 peer-checked:text-white transition-colors tracking-wide block">🌍 全世界</span>
+                                <span class="text-[10px] text-slate-500 peer-checked:text-slate-300">日米ベスト10</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer text-center group">
+                            <input type="radio" name="market-type" value="jp" class="hidden peer">
+                            <div class="bg-slate-900/50 border border-slate-700/50 peer-checked:border-purple-500 peer-checked:bg-purple-900/20 px-2 py-3 rounded-xl transition-all peer-checked:shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+                                <span class="text-sm md:text-base font-bold text-slate-400 peer-checked:text-white transition-colors tracking-wide block">🇯🇵 日本株</span>
+                                <span class="text-[10px] text-slate-500 peer-checked:text-slate-300">国内10銘柄</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer text-center group">
+                            <input type="radio" name="market-type" value="us" class="hidden peer">
+                            <div class="bg-slate-900/50 border border-slate-700/50 peer-checked:border-pink-500 peer-checked:bg-pink-900/20 px-2 py-3 rounded-xl transition-all peer-checked:shadow-[0_0_15px_rgba(236,72,153,0.3)]">
+                                <span class="text-sm md:text-base font-bold text-slate-400 peer-checked:text-white transition-colors tracking-wide block">🇺🇸 米国株</span>
+                                <span class="text-[10px] text-slate-500 peer-checked:text-slate-300">米国10銘柄</span>
+                            </div>
+                        </label>
+                    </div>
                 </div>
 
-                <!-- 【v18】投資テーマ選択 -->
+                <!-- 投資テーマ選択 -->
                 <div class="mb-10 relative z-10 w-full max-w-lg mx-auto">
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <label class="cursor-pointer text-center group">
@@ -251,13 +233,37 @@
                         </label>
                     </div>
                 </div>
+
+                <!-- パーソナライズ設定（スライダー） -->
+                <div class="mb-10 relative z-10 w-full max-w-lg mx-auto bg-slate-900/40 p-6 rounded-2xl border border-slate-700/50">
+                    <h3 class="text-sm font-bold text-slate-300 mb-6 flex items-center justify-center tracking-widest"><i data-lucide="sliders" class="w-4 h-4 mr-2 text-purple-400"></i>AIパーソナライズ設定</h3>
+                    
+                    <div class="mb-6">
+                        <div class="flex justify-between text-xs text-slate-400 mb-3">
+                            <span>短期</span>
+                            <span class="font-bold text-purple-300 px-3 py-1 bg-purple-900/30 rounded border border-purple-500/30" id="term-label">中期 (半年〜1年)</span>
+                            <span>長期</span>
+                        </div>
+                        <input type="range" id="term-slider" min="1" max="3" value="2" class="w-full accent-purple-500 h-2 bg-slate-800 rounded-full appearance-none outline-none cursor-pointer">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs text-slate-400 mb-3">
+                            <span>安定重視</span>
+                            <span class="font-bold text-pink-300 px-3 py-1 bg-pink-900/30 rounded border border-pink-500/30" id="risk-label">バランス型</span>
+                            <span>大化け狙い</span>
+                        </div>
+                        <input type="range" id="risk-slider" min="1" max="3" value="2" class="w-full accent-pink-500 h-2 bg-slate-800 rounded-full appearance-none outline-none cursor-pointer">
+                    </div>
+                </div>
                 
                 <button onclick="startAutoPilotMultiStep()" class="btn-zenith text-white text-2xl font-black px-12 py-6 rounded-full inline-flex items-center justify-center w-full md:w-auto shadow-2xl">
                     <i data-lucide="sparkles" class="w-8 h-8 mr-3"></i> 市場全体をスキャンする
                 </button>
-                <p class="mt-8 text-sm text-slate-500">※確実性を維持しつつ高速化しました（約30秒〜1分かかります）</p>
+                <p class="mt-8 text-sm text-red-400 font-bold tracking-wide">※【注意】このスキャンは大量のAPI枠を消費するため、1日1回の実行を推奨します。</p>
+                <p class="mt-2 text-sm text-slate-500">※確実性を維持しつつ高速化しました（約30秒〜1分かかります）</p>
 
-                <!-- 【v13】履歴表示ボタン (JavaScriptで表示制御) -->
+                <!-- 履歴表示ボタン -->
                 <button id="load-history-btn" onclick="loadLastScanResult()" class="hidden mt-6 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-6 py-3 rounded-xl text-sm font-bold transition-all items-center justify-center mx-auto shadow-lg hover:text-white">
                     <i data-lucide="history" class="w-4 h-4 mr-2 text-blue-400"></i> APIを消費せずに前回のスキャン結果を見る
                 </button>
@@ -301,7 +307,17 @@
                         </div>
                     </div>
 
-                    <div class="lg:col-span-3 flex flex-col gap-6" id="portfolio-list"></div>
+                    <div class="lg:col-span-3 flex flex-col gap-6">
+                        <!-- ソート機能UI -->
+                        <div class="flex justify-between items-end border-b border-slate-700/50 pb-2">
+                            <h3 class="text-lg font-bold text-white flex items-center"><i data-lucide="list-ordered" class="w-5 h-5 mr-2 text-purple-400"></i>AI厳選 10銘柄</h3>
+                            <select id="sort-select" onchange="sortDiscoverResults()" class="bg-slate-900 text-xs font-bold text-slate-300 border border-slate-600 rounded-lg px-3 py-2 focus:outline-none focus:border-purple-500 cursor-pointer">
+                                <option value="allocation">推奨配分順 (AIおすすめ)</option>
+                                <option value="ticker">ティッカー順 (A-Z)</option>
+                            </select>
+                        </div>
+                        <div id="portfolio-list" class="flex flex-col gap-6"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -382,9 +398,11 @@
                         <span class="text-[9px] font-bold px-2 py-0.5 rounded border type-badge bg-slate-800/80 backdrop-blur uppercase">種類</span>
                         <span class="text-[9px] font-bold px-2 py-0.5 rounded border sector-badge bg-slate-800/80 backdrop-blur uppercase"><i data-lucide="tag" class="w-2.5 h-2.5 inline mr-1 -mt-0.5"></i>業種/テーマ</span>
                     </div>
-                    <div class="flex items-end gap-3 mb-2">
+                    <div class="flex items-center gap-3 mb-2">
                         <h4 class="text-4xl font-black text-white ticker-text en-font tracking-tighter leading-none">TICKER</h4>
-                        <span class="text-xl font-bold text-slate-300 current-price-text en-font leading-none pb-0.5">---</span>
+                        <a href="#" class="price-link text-xs font-bold text-blue-400 hover:text-white bg-blue-900/30 hover:bg-blue-800/50 px-3 py-1.5 rounded-lg border border-blue-500/30 transition-all flex items-center">
+                            <i data-lucide="external-link" class="w-3 h-3 mr-1.5"></i> リアルタイム株価
+                        </a>
                     </div>
                     <p class="text-xs text-slate-400 company-text mb-3">企業名</p>
                 </div>
@@ -473,7 +491,9 @@
             <div class="p-5 flex flex-col justify-between flex-grow bg-slate-900/30">
                 <div class="flex justify-between items-center mb-3">
                     <div class="text-xs font-bold text-slate-500">現在価格</div>
-                    <div class="text-lg font-bold text-white en-font current-price-text">未取得</div>
+                    <a href="#" class="price-link text-[11px] font-bold text-blue-400 hover:text-white bg-blue-900/30 hover:bg-blue-800/50 px-3 py-1 rounded-lg border border-blue-500/30 transition-all flex items-center">
+                        <i data-lucide="external-link" class="w-3 h-3 mr-1"></i> リアルタイム株価
+                    </a>
                 </div>
                 
                 <div class="bg-slate-900/80 border border-slate-700/50 rounded-xl p-3 mb-4 flex items-center justify-between">
@@ -646,7 +666,6 @@
             location.reload();
         }
 
-        // 【v13】履歴ボタンの表示制御
         function checkHistory() {
             const historyData = localStorage.getItem('autopilot_last_scan');
             const btn = document.getElementById('load-history-btn');
@@ -658,11 +677,63 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             checkAuth(); 
-            checkHistory(); // 起動時に履歴の有無をチェック
+            checkHistory(); 
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
             } else {
                 setTimeout(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); }, 500);
+            }
+
+            const termSlider = document.getElementById('term-slider');
+            const riskSlider = document.getElementById('risk-slider');
+            if(termSlider) {
+                termSlider.addEventListener('input', (e) => {
+                    const labels = ["短期 (数日〜数ヶ月)", "中期 (半年〜1年)", "長期 (数年〜ガチホ)"];
+                    const labelEl = document.getElementById('term-label');
+                    if(labelEl) labelEl.textContent = labels[e.target.value - 1];
+                });
+            }
+            if(riskSlider) {
+                riskSlider.addEventListener('input', (e) => {
+                    const labels = ["ローリスク・安定重視", "ミドルリスク・バランス", "ハイリスク・大化け狙い"];
+                    const labelEl = document.getElementById('risk-label');
+                    if(labelEl) labelEl.textContent = labels[e.target.value - 1];
+                });
+            }
+
+            const closeBtn = document.getElementById('close-modal-btn');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => { 
+                    stopSpeaking(); 
+                    modal.classList.remove('opacity-100'); 
+                    setTimeout(() => modal.classList.add('hidden'), 300); 
+                });
+            }
+
+            const addAssetForm = document.getElementById('add-asset-form');
+            if (addAssetForm) {
+                addAssetForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const tickerInput = document.getElementById('add-ticker');
+                    const priceInput = document.getElementById('add-price');
+                    const sharesInput = document.getElementById('add-shares');
+                    
+                    if (!tickerInput) return;
+                    const ticker = tickerInput.value.trim().toUpperCase();
+                    const price = priceInput ? (parseFloat(priceInput.value) || 0) : 0;
+                    const shares = sharesInput ? (parseFloat(sharesInput.value) || 0) : 0;
+                    
+                    if(!ticker) return;
+                    const assets = getMyAssets();
+                    assets.push({ id: Date.now(), ticker, buyPrice: price, shares, verdict: null, advice: null });
+                    saveMyAssets(assets);
+                    
+                    tickerInput.value = ''; 
+                    if(priceInput) priceInput.value = ''; 
+                    if(sharesInput) sharesInput.value = '';
+                    
+                    renderMyPortfolio();
+                });
             }
         });
 
@@ -698,13 +769,13 @@
             stopSpeaking(); 
             document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
-            document.getElementById(tabId).classList.add('active');
+            const newTab = document.querySelector(`[data-tab="${tabId}"]`);
+            const newContent = document.getElementById(tabId);
+            if(newTab) newTab.classList.add('active');
+            if(newContent) newContent.classList.add('active');
             if (tabId === 'tab-myportfolio') renderMyPortfolio();
         }
 
-        document.getElementById('close-modal-btn').addEventListener('click', () => { stopSpeaking(); modal.classList.remove('opacity-100'); setTimeout(() => modal.classList.add('hidden'), 300); });
-        
         async function getAvailableModel() {
             const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
             const response = await fetch(url);
@@ -826,9 +897,10 @@
             document.getElementById('discover-results').classList.add('hidden');
             errorMsg.classList.add('hidden');
 
-            const marketType = document.querySelector('input[name="market-type"]:checked').value;
-            // 【v18】選択されたテーマを取得
-            const themeType = document.querySelector('input[name="theme-type"]:checked').value;
+            const marketTypeEl = document.querySelector('input[name="market-type"]:checked');
+            const themeTypeEl = document.querySelector('input[name="theme-type"]:checked');
+            const marketType = marketTypeEl ? marketTypeEl.value : 'global';
+            const themeType = themeTypeEl ? themeTypeEl.value : 'general';
             
             let themeText = "";
             switch(themeType) {
@@ -838,19 +910,31 @@
                 case 'value': themeText = "業績に対して本来の価値より安く放置されている【割安(バリュー)株】"; break;
             }
 
+            const termSlider = document.getElementById('term-slider');
+            const riskSlider = document.getElementById('risk-slider');
+            const termVal = termSlider ? termSlider.value : 2;
+            const riskVal = riskSlider ? riskSlider.value : 2;
+            const termStrs = ["数日から数ヶ月の短期トレード", "半年から1年程度の中期投資", "数年単位の長期・ガチホ投資"];
+            const riskStrs = ["価格変動が小さく下落耐性が強いローリスク銘柄", "リスクとリターンのバランスが取れた銘柄", "価格変動が激しくても数倍のリターンを狙えるハイリスク銘柄"];
+            const userProfilePrompt = `【ユーザーの投資方針】\n・想定投資期間: ${termStrs[termVal - 1]}\n・リスク許容度: ${riskStrs[riskVal - 1]}\n※必ずこの投資方針に合致した銘柄を抽出してください。`;
+
             const today = new Date().toLocaleDateString('ja-JP');
             
             let marketPrompt = "";
             let pricePrompt = "";
             
-            if (marketType === "jp") {
-                marketPrompt = `今初心者が買うべき有望な【日本株を3銘柄】厳選してください。今回は特に「${themeText}」を重視して選定してください。ティッカーシンボルは「7203」のように4桁の数字で出力してください。`;
-                pricePrompt = `必ずGoogle検索を利用して最新の【日本円の株価(現在値)】を正確に調べて「currentPrice」に入れてください。`;
-                loadingText.innerHTML = "市場をスキャンし、有望な3銘柄の最新株価とシナリオを分析中...<br><span class='text-xs text-amber-400'>APIを節約する「統合分析モード」で実行しています</span>";
+            if (marketType === "global") {
+                marketPrompt = `${userProfilePrompt}\n\n今初心者が買うべき有望な【日本株・米国株の中から合計10銘柄】を厳選してください（日米混合で構いません）。今回は特に「${themeText}」を重視して選定してください。ティッカーシンボルは、日本株なら「7203」のように4桁の数字、米国株なら「AAPL」のようにアルファベットで出力してください。`;
+                pricePrompt = `※正確な現在株価はユーザーが外部サイトで確認するため、AI側での厳密な価格取得は不要です。「currentPrice」「takeProfit」「stopLoss」等の項目には、ニュースから分かる大体の目安となる数字（日本株なら円、米国株ならドル）を入れてください。`;
+                loadingText.innerHTML = "市場をスキャンし、世界中から有望な10銘柄を分析中...<br><span class='text-xs text-amber-400'>APIを節約する「統合分析モード」で実行しています</span>";
+            } else if (marketType === "jp") {
+                marketPrompt = `${userProfilePrompt}\n\n今初心者が買うべき有望な【日本株を10銘柄】厳選してください。今回は特に「${themeText}」を重視して選定してください。ティッカーシンボルは「7203」のように4桁の数字で出力してください。`;
+                pricePrompt = `※正確な現在株価はユーザーが外部サイトで確認するため、AI側での厳密な価格取得は不要です。「currentPrice」「takeProfit」「stopLoss」等の項目には、ニュースから分かる大体の目安となる数字を入れてください。`;
+                loadingText.innerHTML = "市場をスキャンし、有望な10銘柄の最新株価とシナリオを分析中...<br><span class='text-xs text-amber-400'>APIを節約する「統合分析モード」で実行しています</span>";
             } else {
-                marketPrompt = `今初心者が買うべき有望な【米国株を3銘柄】厳選してください。今回は特に「${themeText}」を重視して選定してください。ティッカーシンボルは「AAPL」のようにアルファベットで出力してください。`;
-                pricePrompt = `必ずGoogle検索を利用して最新の【米ドルの株価(現在値)】を正確に調べて「currentPrice」に入れてください。`;
-                loadingText.innerHTML = "市場をスキャンし、有望な3銘柄の最新株価とシナリオを分析中...<br><span class='text-xs text-amber-400'>APIを節約する「統合分析モード」で実行しています</span>";
+                marketPrompt = `${userProfilePrompt}\n\n今初心者が買うべき有望な【米国株を10銘柄】厳選してください。今回は特に「${themeText}」を重視して選定してください。ティッカーシンボルは「AAPL」のようにアルファベットで出力してください。`;
+                pricePrompt = `※正確な現在株価はユーザーが外部サイトで確認するため、AI側での厳密な価格取得は不要です。「currentPrice」「takeProfit」「stopLoss」等の項目には、ニュースから分かる大体の目安となる数字を入れてください。`;
+                loadingText.innerHTML = "市場をスキャンし、有望な10銘柄の最新株価とシナリオを分析中...<br><span class='text-xs text-amber-400'>APIを節約する「統合分析モード」で実行しています</span>";
             }
 
             loadingTitle.textContent = "AI統合分析プロセスを実行中...";
@@ -858,13 +942,12 @@
             loadingPanel.classList.add('flex');
 
             try {
-                // 【v16】API節約のため、ステップ1(市場)とステップ2(個別)を1回のプロンプトとスキーマに完全統合
                 const combinedPayload = {
                     contents: [{ parts: [{ text: `本日は ${today} です。最新の経済ニュースと機関投資家のレポートを分析し、以下の情報を出力してください。
 1. 現在の市場シグナルと、資金流入(HOT)/流出(COLD)のセクターヒートマップ
 2. ${marketPrompt}
-3. 選定した3銘柄それぞれの詳細な投資シナリオ。${pricePrompt} ターゲット価格などもその現在値を基準に現実的な数値を設定してください。` }] }],
-                    systemInstruction: { parts: [{ text: "プロのアナリストとしてJSONで日本語出力してください。" }] },
+3. 選定した10銘柄それぞれの詳細な投資シナリオ。${pricePrompt} ターゲット価格などもその現在値を基準に現実的な数値を設定してください。` }] }],
+                    systemInstruction: { parts: [{ text: "プロのアナリストとしてJSONで日本語出力してください。株価は必ずリアルタイムの最新価格を検索・確認して使用すること。" }] },
                     tools: [{ google_search: {} }],
                     generationConfig: {
                         responseMimeType: "application/json",
@@ -893,7 +976,7 @@
                                         },
                                         required: ["assetType", "sector", "ticker", "companyName", "currentPrice", "allocationPercent", "simpleReason", "actionInstruction", "takeProfit", "stopLoss"]
                                     },
-                                    description: "厳選した3銘柄の詳細データ"
+                                    description: "厳選した10銘柄の詳細データ"
                                 }
                             },
                             required: ["marketSignal", "sectorHeatmap", "portfolio"]
@@ -910,9 +993,8 @@
                     throw new Error("すべての銘柄の分析に失敗しました。時間を置いてやり直してください。");
                 }
 
-                // 安全装置: 3銘柄以上に増えた場合はカット
-                if (finalPortfolio.length > 3) {
-                    finalPortfolio = finalPortfolio.slice(0, 3);
+                if (finalPortfolio.length > 10) {
+                    finalPortfolio = finalPortfolio.slice(0, 10);
                 }
 
                 let totalAlloc = finalPortfolio.reduce((sum, item) => sum + (item.allocationPercent || 0), 0);
@@ -932,9 +1014,8 @@
                 finalData.portfolio = finalPortfolio;
                 finalData.timestamp = Date.now();
                 
-                // 【v13】スキャン結果を履歴として保存
                 localStorage.setItem('autopilot_last_scan', JSON.stringify(finalData));
-                checkHistory(); // ボタンを再評価
+                checkHistory(); 
 
                 currentDiscoverData = finalData.portfolio; 
                 renderDiscoverResults(finalData);
@@ -957,7 +1038,6 @@
             }
         }
 
-        // 【v13】前回のスキャン結果を読み込む処理
         function loadLastScanResult() {
             const historyStr = localStorage.getItem('autopilot_last_scan');
             if (historyStr) {
@@ -976,110 +1056,149 @@
             if (!data) return;
             const sigLamp = document.getElementById('signal-color');
             const sigText = document.getElementById('signal-text');
-            sigLamp.className = 'w-20 h-20 rounded-full flex items-center justify-center mb-4 relative z-10'; 
-            if (data.marketSignal.status === 'GREEN') { sigLamp.classList.add('bg-green-500/20', 'text-green-400', 'shadow-[0_0_30px_rgba(34,197,94,0.4)]'); sigText.textContent = '買いシグナル'; sigText.className = 'text-2xl font-black text-green-400 mb-2 relative z-10 tracking-wider'; } 
-            else if (data.marketSignal.status === 'YELLOW') { sigLamp.classList.add('bg-yellow-500/20', 'text-yellow-400', 'shadow-[0_0_30px_rgba(234,179,8,0.4)]'); sigText.textContent = '警戒 (注意)'; sigText.className = 'text-2xl font-black text-yellow-400 mb-2 relative z-10 tracking-wider'; } 
-            else { sigLamp.classList.add('bg-red-500/20', 'text-red-400', 'shadow-[0_0_30px_rgba(239,68,68,0.4)]'); sigText.textContent = '見送り推奨'; sigText.className = 'text-2xl font-black text-red-400 mb-2 relative z-10 tracking-wider'; }
+            if(sigLamp && sigText) {
+                sigLamp.className = 'w-20 h-20 rounded-full flex items-center justify-center mb-4 relative z-10'; 
+                if (data.marketSignal.status === 'GREEN') { sigLamp.classList.add('bg-green-500/20', 'text-green-400', 'shadow-[0_0_30px_rgba(34,197,94,0.4)]'); sigText.textContent = '買いシグナル'; sigText.className = 'text-2xl font-black text-green-400 mb-2 relative z-10 tracking-wider'; } 
+                else if (data.marketSignal.status === 'YELLOW') { sigLamp.classList.add('bg-yellow-500/20', 'text-yellow-400', 'shadow-[0_0_30px_rgba(234,179,8,0.4)]'); sigText.textContent = '警戒 (注意)'; sigText.className = 'text-2xl font-black text-yellow-400 mb-2 relative z-10 tracking-wider'; } 
+                else { sigLamp.classList.add('bg-red-500/20', 'text-red-400', 'shadow-[0_0_30px_rgba(239,68,68,0.4)]'); sigText.textContent = '見送り推奨'; sigText.className = 'text-2xl font-black text-red-400 mb-2 relative z-10 tracking-wider'; }
+            }
             
             safeSetText('signal-reason', data.marketSignal.reason);
 
             const discoverSpeakBtn = document.getElementById('discover-speak-btn');
-            if(discoverSpeakBtn) {
+            if(discoverSpeakBtn && sigText) {
                 discoverSpeakBtn.classList.remove('hidden');
                 discoverSpeakBtn.onclick = () => speakText(`現在の相場状況は、${sigText.textContent}です。${data.marketSignal.reason}`, discoverSpeakBtn);
             }
 
             const heatmapContainer = document.getElementById('heatmap-container');
-            heatmapContainer.innerHTML = '';
-            if (data.sectorHeatmap) {
-                data.sectorHeatmap.forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = `p-3 rounded-xl border flex flex-col justify-center items-center text-center ${item.heat === 'HOT' ? 'heat-hot' : item.heat === 'WARM' ? 'heat-warm' : 'heat-cold'}`;
-                    const icon = item.heat === 'HOT' ? 'flame' : item.heat === 'WARM' ? 'thermometer' : 'snowflake';
-                    div.innerHTML = `
-                        <div class="text-[9px] font-bold text-white/70 mb-1 tech-font flex items-center tracking-widest"><i data-lucide="${icon}" class="w-3 h-3 mr-1"></i>${item.heat}</div>
-                        <div class="text-sm font-bold text-white leading-tight mb-1">${item.sectorName}</div>
-                        <div class="text-[10px] text-white/70 leading-tight line-clamp-2">${item.reason}</div>
-                    `;
-                    heatmapContainer.appendChild(div);
-                });
+            if(heatmapContainer) {
+                heatmapContainer.innerHTML = '';
+                if (data.sectorHeatmap) {
+                    data.sectorHeatmap.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = `p-3 rounded-xl border flex flex-col justify-center items-center text-center ${item.heat === 'HOT' ? 'heat-hot' : item.heat === 'WARM' ? 'heat-warm' : 'heat-cold'}`;
+                        const icon = item.heat === 'HOT' ? 'flame' : item.heat === 'WARM' ? 'thermometer' : 'snowflake';
+                        div.innerHTML = `
+                            <div class="text-[9px] font-bold text-white/70 mb-1 tech-font flex items-center tracking-widest"><i data-lucide="${icon}" class="w-3 h-3 mr-1"></i>${item.heat}</div>
+                            <div class="text-sm font-bold text-white leading-tight mb-1">${item.sectorName}</div>
+                            <div class="text-[10px] text-white/70 leading-tight line-clamp-2">${item.reason}</div>
+                        `;
+                        heatmapContainer.appendChild(div);
+                    });
+                }
             }
 
-            const listContainer = document.getElementById('portfolio-list');
-            listContainer.innerHTML = '';
+            const sortSelect = document.getElementById('sort-select');
+            if(sortSelect) sortSelect.value = 'allocation';
             
-            if (data.portfolio) {
-                data.portfolio.sort((a, b) => b.allocationPercent - a.allocationPercent).forEach((item, index) => {
-                    const template = document.getElementById('discover-card-template');
-                    if(!template) return;
-                    const clone = template.content.cloneNode(true);
-                    
-                    const safeSetClone = (selector, text) => { const el = clone.querySelector(selector); if (el) el.textContent = text || "---"; };
-
-                    safeSetClone('.type-badge', item.assetType);
-                    const sb = clone.querySelector('.sector-badge');
-                    if(sb) sb.innerHTML = `<i data-lucide="tag" class="w-2.5 h-2.5 inline mr-1 -mt-0.5 text-slate-400"></i>${item.sector}`;
-                    safeSetClone('.ticker-text', item.ticker);
-                    safeSetClone('.company-text', item.companyName);
-                    safeSetClone('.current-price-text', formatCurrency(item.currentPrice, item.ticker));
-                    safeSetClone('.allocation-text', `${item.allocationPercent}%`);
-                    
-                    const budgetEl = clone.querySelector('.calculated-budget');
-                    if(budgetEl) budgetEl.id = `discover-budget-${index}`;
-                    
-                    safeSetClone('.reason-text', item.simpleReason);
-                    safeSetClone('.action-text', item.actionInstruction);
-                    safeSetClone('.tp-text', formatCurrency(item.takeProfit, item.ticker));
-                    safeSetClone('.sl-text', formatCurrency(item.stopLoss, item.ticker));
-
-                    const cp = extractNumber(item.currentPrice);
-                    const tp = extractNumber(item.takeProfit);
-                    const sl = extractNumber(item.stopLoss);
-                    if (cp > 0 && tp > 0 && sl > 0 && tp > sl) {
-                        const slPercent = Math.max(5, Math.min(95, ((cp - sl) / (tp - sl)) * 100));
-                        const rrSl = clone.querySelector('.rr-meter-sl');
-                        const rrTp = clone.querySelector('.rr-meter-tp');
-                        const rrCur = clone.querySelector('.rr-meter-current');
-                        if(rrSl) rrSl.style.width = `${slPercent}%`;
-                        if(rrTp) rrTp.style.width = `${100 - slPercent}%`;
-                        if(rrCur) rrCur.style.left = `${slPercent}%`;
-                    }
-
-                    if(item.scenarios) {
-                        if(item.scenarios.bull) { safeSetClone('.bull-prob', `${item.scenarios.bull.probability}%`); safeSetClone('.bull-target', formatCurrency(item.scenarios.bull.targetPrice, item.ticker)); safeSetClone('.bull-cond', item.scenarios.bull.condition); }
-                        if(item.scenarios.base) { safeSetClone('.base-prob', `${item.scenarios.base.probability}%`); safeSetClone('.base-target', formatCurrency(item.scenarios.base.targetPrice, item.ticker)); safeSetClone('.base-cond', item.scenarios.base.condition); }
-                        if(item.scenarios.bear) { safeSetClone('.bear-prob', `${item.scenarios.bear.probability}%`); safeSetClone('.bear-target', formatCurrency(item.scenarios.bear.targetPrice, item.ticker)); safeSetClone('.bear-cond', item.scenarios.bear.condition); }
-
-                        setTimeout(() => {
-                            const bullBar = clone.querySelector('.bull-bar'); const baseBar = clone.querySelector('.base-bar'); const bearBar = clone.querySelector('.bear-bar');
-                            if (bullBar && item.scenarios.bull) bullBar.style.width = `${item.scenarios.bull.probability}%`;
-                            if (baseBar && item.scenarios.base) baseBar.style.width = `${item.scenarios.base.probability}%`;
-                            if (bearBar && item.scenarios.bear) bearBar.style.width = `${item.scenarios.bear.probability}%`;
-                        }, 300);
-                    }
-
-                    const deepBtn = clone.querySelector('.deep-scan-btn');
-                    if(deepBtn) deepBtn.addEventListener('click', () => openDeepScanModal(item.ticker, item.companyName));
-                    listContainer.appendChild(clone);
-                });
-            }
+            renderPortfolioList();
 
             const canvas = document.getElementById('portfolioChart');
             if (canvas && data.portfolio) {
                 const ctx = canvas.getContext('2d');
                 if (portfolioChartInstance) portfolioChartInstance.destroy();
-                portfolioChartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: data.portfolio.map(i => i.ticker), datasets: [{ data: data.portfolio.map(i => i.allocationPercent), backgroundColor: ['#3b82f6', '#8b5cf6', '#db2777', '#10b981', '#f59e0b', '#06b6d4'], borderColor: 'transparent', borderWidth: 0, hoverOffset: 5 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { display: false } } } });
+                portfolioChartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: data.portfolio.map(i => i.ticker), datasets: [{ data: data.portfolio.map(i => i.allocationPercent), backgroundColor: ['#3b82f6', '#8b5cf6', '#db2777', '#10b981', '#f59e0b', '#06b6d4', '#ec4899', '#14b8a6', '#f97316', '#6366f1'], borderColor: 'transparent', borderWidth: 0, hoverOffset: 5 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { display: false } } } });
             }
 
-            recalculateBudgets();
             const resContainer = document.getElementById('discover-results');
-            resContainer.classList.remove('hidden');
-            resContainer.classList.add('flex');
-            setTimeout(() => { resContainer.style.opacity = '1'; lucide.createIcons(); }, 100);
+            if(resContainer) {
+                resContainer.classList.remove('hidden');
+                resContainer.classList.add('flex');
+                setTimeout(() => { resContainer.style.opacity = '1'; lucide.createIcons(); }, 100);
+            }
+        }
+
+        function sortDiscoverResults() {
+            renderPortfolioList();
+        }
+
+        function renderPortfolioList() {
+            if (!currentDiscoverData) return;
+            
+            const listContainer = document.getElementById('portfolio-list');
+            if(!listContainer) return;
+            listContainer.innerHTML = '';
+            
+            const sortSelect = document.getElementById('sort-select');
+            const sortType = sortSelect ? sortSelect.value : 'allocation';
+            
+            let sortedData = [...currentDiscoverData];
+            if (sortType === 'allocation') {
+                sortedData.sort((a, b) => b.allocationPercent - a.allocationPercent);
+            } else if (sortType === 'ticker') {
+                sortedData.sort((a, b) => a.ticker.localeCompare(b.ticker));
+            }
+
+            sortedData.forEach((item, index) => {
+                const template = document.getElementById('discover-card-template');
+                if(!template) return;
+                const clone = template.content.cloneNode(true);
+                
+                const safeSetClone = (selector, text) => { const el = clone.querySelector(selector); if (el) el.textContent = text || "---"; };
+
+                safeSetClone('.type-badge', item.assetType);
+                const sb = clone.querySelector('.sector-badge');
+                if(sb) sb.innerHTML = `<i data-lucide="tag" class="w-2.5 h-2.5 inline mr-1 -mt-0.5 text-slate-400"></i>${item.sector}`;
+                safeSetClone('.ticker-text', item.ticker);
+                safeSetClone('.company-text', item.companyName);
+                
+                const priceLink = clone.querySelector('.price-link');
+                if (priceLink) {
+                    const isJP = /^\d{4}/.test(item.ticker);
+                    const code = item.ticker.replace(/\.T$/i, '');
+                    priceLink.href = isJP ? `https://finance.yahoo.co.jp/quote/${code}.T` : `https://finance.yahoo.com/quote/${code}`;
+                    priceLink.target = "_blank";
+                }
+
+                safeSetClone('.allocation-text', `${item.allocationPercent}%`);
+                
+                const budgetEl = clone.querySelector('.calculated-budget');
+                if(budgetEl) budgetEl.id = `discover-budget-${index}`;
+                
+                safeSetClone('.reason-text', item.simpleReason);
+                safeSetClone('.action-text', item.actionInstruction);
+                safeSetClone('.tp-text', formatCurrency(item.takeProfit, item.ticker));
+                safeSetClone('.sl-text', formatCurrency(item.stopLoss, item.ticker));
+
+                const cp = extractNumber(item.currentPrice);
+                const tp = extractNumber(item.takeProfit);
+                const sl = extractNumber(item.stopLoss);
+                if (cp > 0 && tp > 0 && sl > 0 && tp > sl) {
+                    const slPercent = Math.max(5, Math.min(95, ((cp - sl) / (tp - sl)) * 100));
+                    const rrSl = clone.querySelector('.rr-meter-sl');
+                    const rrTp = clone.querySelector('.rr-meter-tp');
+                    const rrCur = clone.querySelector('.rr-meter-current');
+                    if(rrSl) rrSl.style.width = `${slPercent}%`;
+                    if(rrTp) rrTp.style.width = `${100 - slPercent}%`;
+                    if(rrCur) rrCur.style.left = `${slPercent}%`;
+                }
+
+                if(item.scenarios) {
+                    if(item.scenarios.bull) { safeSetClone('.bull-prob', `${item.scenarios.bull.probability}%`); safeSetClone('.bull-target', formatCurrency(item.scenarios.bull.targetPrice, item.ticker)); safeSetClone('.bull-cond', item.scenarios.bull.condition); }
+                    if(item.scenarios.base) { safeSetClone('.base-prob', `${item.scenarios.base.probability}%`); safeSetClone('.base-target', formatCurrency(item.scenarios.base.targetPrice, item.ticker)); safeSetClone('.base-cond', item.scenarios.base.condition); }
+                    if(item.scenarios.bear) { safeSetClone('.bear-prob', `${item.scenarios.bear.probability}%`); safeSetClone('.bear-target', formatCurrency(item.scenarios.bear.targetPrice, item.ticker)); safeSetClone('.bear-cond', item.scenarios.bear.condition); }
+
+                    setTimeout(() => {
+                        const bullBar = clone.querySelector('.bull-bar'); const baseBar = clone.querySelector('.base-bar'); const bearBar = clone.querySelector('.bear-bar');
+                        if (bullBar && item.scenarios.bull) bullBar.style.width = `${item.scenarios.bull.probability}%`;
+                        if (baseBar && item.scenarios.base) baseBar.style.width = `${item.scenarios.base.probability}%`;
+                        if (bearBar && item.scenarios.bear) bearBar.style.width = `${item.scenarios.bear.probability}%`;
+                    }, 300);
+                }
+
+                const deepBtn = clone.querySelector('.deep-scan-btn');
+                if(deepBtn) deepBtn.addEventListener('click', () => openDeepScanModal(item.ticker, item.companyName));
+                listContainer.appendChild(clone);
+            });
+            recalculateBudgets();
+            lucide.createIcons();
         }
 
         function recalculateBudgets() {
-            let budget = parseInt(document.getElementById('budget-input').value.replace(/,/g, ''));
+            const budgetInput = document.getElementById('budget-input');
+            if(!budgetInput) return;
+            let budget = parseInt(budgetInput.value.replace(/,/g, ''));
             if (isNaN(budget) || budget <= 0) budget = 0;
             currentDiscoverData.forEach((item, index) => {
                 const amount = Math.floor(budget * (item.allocationPercent / 100));
@@ -1088,24 +1207,8 @@
             });
         }
 
-        /* =========================================================
-           マイ・ポートフォリオ機能
-        ========================================================= */
         function getMyAssets() { return JSON.parse(localStorage.getItem('my_assets_v1') || '[]'); }
         function saveMyAssets(assets) { localStorage.setItem('my_assets_v1', JSON.stringify(assets)); }
-
-        document.getElementById('add-asset-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const ticker = document.getElementById('add-ticker').value.trim().toUpperCase();
-            const price = parseFloat(document.getElementById('add-price').value) || 0;
-            const shares = parseFloat(document.getElementById('add-shares').value) || 0;
-            if(!ticker) return;
-            const assets = getMyAssets();
-            assets.push({ id: Date.now(), ticker, buyPrice: price, shares, verdict: null, advice: null });
-            saveMyAssets(assets);
-            document.getElementById('add-ticker').value = ''; document.getElementById('add-price').value = ''; document.getElementById('add-shares').value = '';
-            renderMyPortfolio();
-        });
 
         function removeMyAsset(id) { let assets = getMyAssets(); assets = assets.filter(a => a.id !== id); saveMyAssets(assets); renderMyPortfolio(); }
 
@@ -1134,6 +1237,14 @@
                 safeSetClone('.buy-price-text', asset.buyPrice > 0 ? formatCurrency(asset.buyPrice, asset.ticker) : '未設定');
                 safeSetClone('.shares-text', asset.shares > 0 ? asset.shares : '未設定');
                 totalInvested += (asset.buyPrice * asset.shares);
+
+                const priceLink = clone.querySelector('.price-link');
+                if (priceLink) {
+                    const isJP = /^\d{4}/.test(asset.ticker);
+                    const code = asset.ticker.replace(/\.T$/i, '');
+                    priceLink.href = isJP ? `https://finance.yahoo.co.jp/quote/${code}.T` : `https://finance.yahoo.com/quote/${code}`;
+                    priceLink.target = "_blank";
+                }
 
                 if (asset.verdict) {
                     safeSetClone('.advice-text', asset.advice);
@@ -1245,9 +1356,6 @@
             }
         }
 
-        /* =========================================================
-           企業カルテ (Deep Scan)
-        ========================================================= */
         async function openDeepScanModal(ticker, companyName) {
             safeSetText('modal-title', ticker);
             safeSetText('modal-subtitle', companyName);
@@ -1286,7 +1394,7 @@
                 }
             }
 
-            const loadingTexts = ["SNS感情を解析中...", "機関投資家の動向を照会中...", "テクニカル指標を分析中...", "未来のシナリオと注目イベントを生成中...", "AI総合評価チャートを算出中..."];
+            const loadingTexts = ["SNS感情を解析中...", "機関投資家の動向を照会中...", "最新のリアルタイム株価を取得中...", "未来のシナリオと注目イベントを生成中...", "AI総合評価チャートを算出中..."];
             let ltIdx = 0;
             if(loadingInterval) clearInterval(loadingInterval);
             loadingInterval = setInterval(() => { safeSetText('modal-loading-text', loadingTexts[ltIdx % loadingTexts.length]); ltIdx++; }, 1500);
@@ -1295,9 +1403,10 @@
 
             try {
                 const payload = {
-                    contents: [{ parts: [{ text: `本日は ${today} です。銘柄「${ticker}」について深くGoogle検索し、以下の情報を完全な日本語でJSON出力してください。必ず【${today}の最新株価】を検索して基準にし、現実的なシナリオ価格を算出してください。
+                    contents: [{ parts: [{ text: `本日は ${today} です。銘柄「${companyName} (${ticker})」について深くGoogle検索し、以下の情報を完全な日本語でJSON出力してください。
+※正確な現在株価はユーザーが外部のリアルタイムチャートで確認するため、厳密な正確さは不要です。過去からのニュース・業績・市場動向などのデータを深く分析し、今後のシナリオを多角的に算出することに専念してください。
 1. 専門家AIチームの議論と最終判断
-2. 3つの未来シナリオ(Bull/Base/Bear)とその発生確率・ターゲット価格
+2. 3つの未来シナリオ(Bull/Base/Bear)とその発生確率・ターゲット価格(目安で可)
 3. 今後数ヶ月の注目イベント(カタリスト)のタイムライン
 4. 裏データ(SNS感情,内部者取引,テクニカル,サプライチェーン)
 5. レーダーチャート用スコア(成長性,割安度,勢い,安全性,マクロ恩恵) 各10点満点
@@ -1401,7 +1510,6 @@
                         modalErrMsg.innerHTML = `APIキーの形式が正しくありません。<br><button onclick="resetApiKey()" class="mt-3 px-3 py-1.5 bg-red-900/50 border border-red-500/50 rounded-lg text-white font-bold text-xs hover:bg-red-800 transition-colors inline-flex items-center"><i data-lucide="key" class="w-3 h-3 mr-1"></i> キーを再入力</button>`; 
                         lucide.createIcons();
                     } else if (error.message.includes("429")) {
-                        // 【v13】企業カルテでの429エラー（1日上限）に対する親切なメッセージ
                         modalErrMsg.innerHTML = `企業カルテの生成に失敗しました（429エラー）。<br>本日のAPI無料枠の上限に達した可能性が高いです。<br>恐れ入りますが、明日再度お試しいただくか、別のAPIキーをご利用ください。`;
                     } else {
                         modalErrMsg.innerHTML = `企業カルテの生成に失敗しました:<br><span class="text-xs break-all text-red-400 font-mono">${error.message}</span>`; 
