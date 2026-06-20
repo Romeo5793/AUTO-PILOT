@@ -167,35 +167,36 @@
 
         <!-- Tab: Discover -->
         <div id="tab-discover" class="tab-content active gap-8">
-            <div id="intro-panel" class="glass-panel p-6 md:p-10 relative overflow-hidden text-center flex flex-col items-center justify-center min-h-[60vh]">
+            <div id="intro-panel" class="glass-panel p-4 sm:p-6 md:p-10 relative overflow-hidden text-center flex flex-col items-center justify-center min-h-[60vh]">
                 <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
                 
                 <h2 class="text-3xl md:text-5xl lg:text-6xl font-black mb-6 tracking-tight text-white leading-tight mt-4">日本株AI予測エンジン</h2>
-                <p class="text-slate-400 mb-8 max-w-2xl mx-auto text-sm md:text-lg">
+                <p class="text-slate-400 mb-8 max-w-2xl mx-auto text-sm md:text-lg px-2">
                     指定された条件に合わせてAIが国内市場を瞬時に検索・分析し、<br class="hidden sm:block">
                     今最も安全で利益が狙える「買い銘柄」を発掘します。
                 </p>
 
                 <!-- 差分更新（続きから始める）エリア -->
-                <div id="saved-scan-area" class="w-full max-w-5xl mx-auto hidden relative z-10 text-left mb-10">
-                    <h3 class="text-lg font-black text-purple-400 mb-3 flex items-center tracking-wide">
-                        <i data-lucide="refresh-cw" class="w-5 h-5 mr-2"></i> 前回の続きから始める（差分更新）
+                <div id="saved-scan-area" class="w-full max-w-5xl mx-auto hidden relative z-10 text-left mb-8 sm:mb-10">
+                    <h3 class="text-[15px] sm:text-lg font-black text-purple-400 mb-3 flex items-start sm:items-center tracking-wide">
+                        <i data-lucide="refresh-cw" class="w-5 h-5 mr-2 shrink-0 mt-0.5 sm:mt-0"></i> 
+                        <span class="leading-snug">前回の続きから始める<span class="inline-block text-xs sm:text-base opacity-80 ml-1">（差分更新）</span></span>
                     </h3>
-                    <div class="bg-gradient-to-r from-purple-900/40 to-pink-900/40 border border-purple-500/50 rounded-2xl p-5 md:p-6 shadow-[0_0_30px_rgba(168,85,247,0.3)] hover:shadow-[0_0_40px_rgba(219,39,119,0.5)] transition-all relative overflow-hidden">
+                    <div class="bg-gradient-to-r from-purple-900/40 to-pink-900/40 border border-purple-500/50 rounded-2xl p-4 sm:p-5 md:p-6 shadow-[0_0_30px_rgba(168,85,247,0.3)] hover:shadow-[0_0_40px_rgba(219,39,119,0.5)] transition-all relative overflow-hidden">
                         <div class="absolute -right-10 -bottom-10 opacity-10"><i data-lucide="radar" class="w-64 h-64"></i></div>
-                        <div class="flex flex-col md:flex-row justify-between md:items-center gap-6 relative z-10">
+                        <div class="flex flex-col md:flex-row justify-between md:items-center gap-4 sm:gap-6 relative z-10">
                             <div class="flex-grow">
                                 <div class="text-sm text-purple-300 mb-2 font-bold flex items-center">
-                                    <i data-lucide="history" class="w-4 h-4 mr-1"></i> 前回更新: <span id="saved-scan-date" class="text-white en-font ml-1"></span>
+                                    <i data-lucide="history" class="w-4 h-4 mr-1 shrink-0"></i> 前回更新: <span id="saved-scan-date" class="text-white en-font ml-1"></span>
                                 </div>
-                                <div id="saved-scan-conditions" class="text-xs text-slate-300 line-clamp-2 leading-relaxed bg-slate-900/50 p-2 rounded-lg border border-slate-700/50"></div>
+                                <div id="saved-scan-conditions" class="text-xs text-slate-300 line-clamp-2 sm:line-clamp-none leading-relaxed bg-slate-900/50 p-3 rounded-lg border border-slate-700/50"></div>
                             </div>
-                            <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto shrink-0">
-                                <button onclick="loadSavedScan()" class="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-colors border border-slate-600 flex justify-center items-center shadow-lg">
-                                    <i data-lucide="book-open" class="w-4 h-4 mr-2"></i> そのまま開く
+                            <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto shrink-0 mt-2 md:mt-0">
+                                <button onclick="loadSavedScan()" class="px-4 sm:px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-colors border border-slate-600 flex justify-center items-center shadow-lg text-sm sm:text-base w-full sm:w-auto">
+                                    <i data-lucide="book-open" class="w-4 h-4 mr-2 shrink-0"></i> そのまま開く
                                 </button>
-                                <button onclick="startAutoPilotMultiStep(true)" class="px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-black rounded-xl transition-all shadow-lg flex justify-center items-center transform hover:scale-105">
-                                    <i data-lucide="sparkles" class="w-5 h-5 mr-2"></i> 最新情報で差分更新
+                                <button onclick="startAutoPilotMultiStep(true)" class="px-4 sm:px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-black rounded-xl transition-all shadow-lg flex justify-center items-center transform hover:scale-105 text-sm sm:text-base w-full sm:w-auto">
+                                    <i data-lucide="sparkles" class="w-4 h-4 sm:w-5 sm:h-5 mr-2 shrink-0"></i> 最新情報で差分更新
                                 </button>
                             </div>
                         </div>
@@ -203,16 +204,16 @@
                 </div>
 
                 <!-- 区切り線 -->
-                <div id="intro-divider" class="w-full max-w-5xl mx-auto hidden mb-10 flex items-center">
+                <div id="intro-divider" class="w-full max-w-5xl mx-auto hidden mb-8 sm:mb-10 flex items-center">
                     <div class="flex-grow h-px bg-slate-800"></div>
-                    <span class="px-4 text-xs font-bold text-slate-600 tracking-widest uppercase">Or start new scan</span>
+                    <span class="px-4 text-[10px] sm:text-xs font-bold text-slate-600 tracking-widest uppercase">Or start new scan</span>
                     <div class="flex-grow h-px bg-slate-800"></div>
                 </div>
 
                 <!-- パーソナライズ設定パネル -->
-                <div class="mb-8 w-full max-w-5xl mx-auto glass-panel p-6 border border-blue-500/30 text-left relative z-10">
-                    <h3 class="text-sm font-bold text-blue-400 mb-4 flex items-center tracking-wide">
-                        <i data-lucide="sliders-horizontal" class="w-4 h-4 mr-2"></i> 新規スキャン条件
+                <div class="mb-6 sm:mb-8 w-full max-w-5xl mx-auto glass-panel p-4 sm:p-6 border border-blue-500/30 text-left relative z-10">
+                    <h3 class="text-xs sm:text-sm font-bold text-blue-400 mb-4 flex items-center tracking-wide">
+                        <i data-lucide="sliders-horizontal" class="w-4 h-4 mr-2 shrink-0"></i> 新規スキャン条件
                     </h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                         
@@ -282,14 +283,20 @@
                 <!-- 2つの抽出ボタン -->
                 <div class="flex flex-col md:flex-row gap-4 w-full max-w-5xl mx-auto relative z-10 justify-center">
                     
-                    <button onclick="startAutoPilotMultiStep(false, true)" class="w-full md:w-1/2 py-5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-black rounded-2xl transition-all shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:shadow-[0_0_30px_rgba(245,158,11,0.6)] flex flex-col items-center justify-center transform hover:-translate-y-1">
-                        <span class="flex items-center text-lg md:text-xl"><i data-lucide="gift" class="w-6 h-6 mr-2"></i> 今月の優待人気ランキングをAI検索</span>
-                        <span class="text-[11px] text-amber-100 font-bold mt-1.5 opacity-90">※直近で権利確定する人気の優待銘柄トップ20を抽出します</span>
+                    <button onclick="startAutoPilotMultiStep(false, true)" class="w-full md:w-1/2 py-4 sm:py-5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white rounded-2xl transition-all shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:shadow-[0_0_30px_rgba(245,158,11,0.6)] flex flex-col items-center justify-center transform hover:-translate-y-1">
+                        <div class="flex items-center justify-center text-[15px] sm:text-lg md:text-xl w-full px-2">
+                            <i data-lucide="gift" class="w-5 h-5 sm:w-6 sm:h-6 mr-1.5 sm:mr-2 shrink-0"></i>
+                            <span class="leading-tight font-black">今月の優待人気ランキングをAI検索</span>
+                        </div>
+                        <span class="text-[10px] sm:text-[11px] text-amber-100 font-bold mt-2 opacity-90 px-4 text-center leading-relaxed">※直近で権利確定する人気の優待銘柄トップ20を抽出します</span>
                     </button>
                     
-                    <button onclick="startAutoPilotMultiStep(false, false)" class="w-full md:w-1/2 py-5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-2 border-slate-600 hover:border-blue-500/50 hover:text-white font-bold rounded-2xl transition-all flex flex-col items-center justify-center">
-                        <span class="flex items-center text-lg"><i data-lucide="search" class="w-5 h-5 mr-2"></i> 条件に合うおすすめ20選を抽出</span>
-                        <span class="text-[11px] text-slate-500 font-bold mt-1.5">※上のスキャン条件をもとに全市場を分析します</span>
+                    <button onclick="startAutoPilotMultiStep(false, false)" class="w-full md:w-1/2 py-4 sm:py-5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-2 border-slate-600 hover:border-blue-500/50 hover:text-white rounded-2xl transition-all flex flex-col items-center justify-center">
+                        <div class="flex items-center justify-center text-[15px] sm:text-lg w-full px-2">
+                            <i data-lucide="search" class="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 shrink-0"></i>
+                            <span class="leading-tight font-bold">条件に合うおすすめ20選を抽出</span>
+                        </div>
+                        <span class="text-[10px] sm:text-[11px] text-slate-400 font-bold mt-2 px-4 text-center leading-relaxed">※上のスキャン条件をもとに全市場を分析します</span>
                     </button>
                 </div>
             </div>
