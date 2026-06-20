@@ -849,6 +849,9 @@
                     }
 
                     if (response.status === 429) {
+                        if (errMsg.toLowerCase().includes("depleted") || errMsg.toLowerCase().includes("quota")) {
+                            throw new Error("APIの利用制限、またはクレジット（無料枠）が枯渇しています。Google AI Studioで利用状況と支払い設定をご確認ください。");
+                        }
                         addLog("WARN", `レートリミット(429)を検出。${delay/1000}秒待機します...`);
                         await new Promise(r => setTimeout(r, delay));
                         delay *= 2; 
@@ -877,7 +880,7 @@
 
                     throw new Error(`Google API エラー (${response.status}): ${errMsg}`);
                 } catch (e) {
-                    if (e.message.includes("APIキーが無効") || e.message.includes("Google API エラー (400)")) {
+                    if (e.message.includes("APIキーが無効") || e.message.includes("Google API エラー (400)") || e.message.includes("枯渇")) {
                         addLog("ERROR", "再試行不可能なエラーのため処理を中断します", e.message);
                         throw e; 
                     }
@@ -1037,6 +1040,8 @@
                 addLog("ERROR", "【新規発掘スキャン】失敗", error.message);
                 if (error.message.includes("APIキーが無効") || error.message.includes("401")) {
                     errorMsg.innerHTML = `APIキー（パスワード）が間違っています。<br><button onclick="resetApiKey()" class="mt-4 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white font-bold text-sm hover:bg-slate-700 transition-colors inline-flex items-center"><i data-lucide="key" class="w-4 h-4 mr-2"></i> キーを再入力する</button>`;
+                } else if (error.message.includes("枯渇")) {
+                    errorMsg.innerHTML = `APIの利用枠が上限に達しました。<br><span class="text-sm text-slate-300 mt-2 block">Google AI Studioでクレジット残高や支払い設定をご確認ください。</span><br><a href="https://aistudio.google.com/app/billing" target="_blank" class="mt-4 px-4 py-2 bg-blue-900/50 border border-blue-500/50 rounded-lg text-blue-300 font-bold text-sm hover:bg-blue-800 transition-colors inline-flex items-center"><i data-lucide="external-link" class="w-4 h-4 mr-2"></i>AI Studioを開く</a>`;
                 } else {
                     errorMsg.innerHTML = `処理中にエラーが発生しました:<br><span class="text-[11px] break-all text-red-400 font-mono mt-2 block">${error.message}</span>`;
                     errorMsg.innerHTML += getLogButtonHTML(); // ログダウンロードボタンを追加
@@ -1270,6 +1275,8 @@
                 addLog("ERROR", "【ポートフォリオ診断】失敗", error.message);
                 if (error.message.includes("APIキーが無効")) {
                     errorMsg.innerHTML = `APIキー（パスワード）が間違っています。<br><button onclick="resetApiKey()" class="mt-4 text-purple-400 underline font-bold text-sm hover:text-purple-300">キーを再入力する</button>`;
+                } else if (error.message.includes("枯渇")) {
+                    errorMsg.innerHTML = `APIの利用枠が上限に達しました。<br><span class="text-xs text-slate-300 mt-1 block">Google AI Studioでクレジット残高や支払い設定をご確認ください。</span>`;
                 } else {
                     errorMsg.innerHTML = `スキャンに失敗しました:<br><span class="text-[11px] break-all text-red-400 font-mono block mt-2">${error.message}</span>`;
                     errorMsg.innerHTML += getLogButtonHTML();
@@ -1461,6 +1468,9 @@
                 if (modalErrMsg) { 
                     if (error.message.includes("APIキーが無効")) {
                         modalErrMsg.innerHTML = `APIキー（パスワード）が間違っています。<br><button onclick="resetApiKey()" class="mt-3 px-3 py-1.5 bg-red-900/50 border border-red-500/50 rounded-lg text-white font-bold text-xs hover:bg-red-800 transition-colors inline-flex items-center"><i data-lucide="key" class="w-3 h-3 mr-1"></i> キーを再入力</button>`; 
+                        lucide.createIcons();
+                    } else if (error.message.includes("枯渇")) {
+                        modalErrMsg.innerHTML = `APIの利用枠が上限に達しました。<br><span class="text-xs text-slate-300 mt-1 block mb-3">Google AI Studioでクレジット残高や支払い設定をご確認ください。</span><a href="https://aistudio.google.com/app/billing" target="_blank" class="px-3 py-1.5 bg-blue-900/50 border border-blue-500/50 rounded-lg text-blue-300 font-bold text-xs hover:bg-blue-800 transition-colors inline-flex items-center"><i data-lucide="external-link" class="w-3 h-3 mr-1"></i>AI Studioを開く</a>`; 
                         lucide.createIcons();
                     } else {
                         modalErrMsg.innerHTML = `企業カルテの生成に失敗しました:<br><span class="text-[11px] break-all text-red-400 font-mono block mt-2">${error.message}</span>`; 
