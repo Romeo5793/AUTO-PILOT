@@ -150,7 +150,7 @@
     <main class="flex-grow container mx-auto max-w-7xl p-4 mt-4 md:mt-8 relative z-10">
         
         <!-- Messages & Loading -->
-        <div id="error-message" class="hidden bg-red-900/20 border border-red-500/50 text-red-200 p-4 rounded-2xl text-center mb-6 backdrop-blur-sm"></div>
+        <div id="error-message" class="hidden bg-red-900/20 border border-red-500/50 text-red-200 p-4 rounded-2xl text-center mb-6 backdrop-blur-sm flex flex-col items-center"></div>
         
         <div id="loading-panel" class="hidden flex-col items-center justify-center py-32 glass-panel mb-6 relative overflow-hidden">
             <div class="scan-line-modal"></div>
@@ -456,7 +456,6 @@
         </div>
     </template>
 
-    <!-- 保存済みカルテ用のテンプレート -->
     <template id="saved-report-card-template">
         <div class="bg-slate-900/50 border border-slate-700/50 rounded-xl p-4 relative group hover:bg-slate-800/50 transition-colors shadow-lg">
             <button class="delete-report-btn absolute top-3 right-3 text-slate-500 hover:text-red-400 transition-colors bg-slate-900/80 p-1.5 rounded-full border border-slate-700/50"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
@@ -510,7 +509,7 @@
 
             <div class="p-4 md:p-8 overflow-y-auto flex-grow relative bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] bg-repeat" id="modal-body">
                 
-                <div id="modal-error-message" class="hidden bg-red-900/20 border border-red-500/50 text-red-200 p-4 rounded-2xl text-center mb-6 backdrop-blur-sm"></div>
+                <div id="modal-error-message" class="hidden bg-red-900/20 border border-red-500/50 text-red-200 p-4 rounded-2xl text-center mb-6 backdrop-blur-sm flex flex-col items-center"></div>
 
                 <div id="modal-loading" class="absolute inset-0 bg-[#020617]/90 backdrop-blur-sm z-30 flex flex-col items-center justify-center pb-10">
                     <div class="scan-line-modal"></div>
@@ -604,10 +603,64 @@
 
     <!-- Scripts -->
     <script>
+        // --- 内部ロギングシステム (エラー調査用) ---
+        const appLogs = [];
+
+        function addLog(level, message, details = "") {
+            const now = new Date();
+            const timeStr = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}.${now.getMilliseconds()}`;
+            const detailStr = typeof details === 'object' ? JSON.stringify(details) : details;
+            
+            appLogs.push({ time: timeStr, level, message, details: detailStr });
+            
+            // 開発者ツールにも出力しておく
+            if(level === 'ERROR' || level === 'WARN') {
+                console.error(`[${level}] ${message}`, details);
+            } else {
+                console.log(`[${level}] ${message}`);
+            }
+        }
+
+        // ログをCSV化してダウンロードさせる機能
+        function downloadLogsCSV() {
+            let csv = '\uFEFF'; // UTF-8のBOM (Excelで文字化けさせないため)
+            csv += '"Time","Level","Message","Details"\n'; // ヘッダー
+            
+            appLogs.forEach(log => {
+                // ダブルクォートをエスケープ
+                const safeMsg = (log.message || "").replace(/"/g, '""');
+                const safeDetails = (log.details || "").replace(/"/g, '""');
+                csv += `"${log.time}","${log.level}","${safeMsg}","${safeDetails}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `autopilot_debug_logs_${new Date().getTime()}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            addLog("INFO", "エラーログのCSVダウンロードを実行しました");
+        }
+
+        // CSVダウンロードボタンのHTMLを生成するヘルパー関数
+        function getLogButtonHTML() {
+            return `
+                <div class="mt-4 w-full flex justify-center">
+                    <button onclick="downloadLogsCSV()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg text-xs font-bold border border-slate-600 transition-colors inline-flex items-center shadow-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        内部エラーログ(CSV)を保存して調査
+                    </button>
+                </div>
+            `;
+        }
+
+
         // --- 設定値のグローバル保存用 ---
         window.appSettings = null;
-
-        // セッションキャッシュ（画面を開いている間の一時保存）
         const sessionReportCache = new Map();
 
         // --- 認証（パスワード）システム ---
@@ -629,6 +682,7 @@
             if (input) {
                 apiKey = input;
                 localStorage.setItem('autopilot_api_key', apiKey);
+                addLog("INFO", "APIキーを保存しました");
                 checkAuth();
             }
         }
@@ -636,10 +690,12 @@
         function resetApiKey() {
             localStorage.removeItem('autopilot_api_key');
             apiKey = "";
+            addLog("INFO", "APIキーをリセットしました");
             location.reload();
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            addLog("INFO", "アプリケーション起動");
             checkAuth();
             renderSavedScan();
             renderSavedReports();
@@ -692,62 +748,62 @@
 
         document.getElementById('close-modal-btn').addEventListener('click', () => { stopSpeaking(); modal.classList.remove('opacity-100'); setTimeout(() => modal.classList.add('hidden'), 300); });
         
-        // 利用可能なモデルの中から最適なものを自動選択する関数
         let currentBestModel = null;
 
         async function getBestModel() {
-            // すでに取得済みの場合はキャッシュを返す（無駄なAPI通信を省く）
             if (currentBestModel) return currentBestModel;
 
+            addLog("INFO", "AIモデルの自動選定を開始します");
             try {
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-                if (!response.ok) throw new Error("モデルの取得に失敗しました");
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
                 
                 const data = await response.json();
                 const availableModels = data.models.map(m => m.name.replace('models/', ''));
 
-                // 優先的に使用したいモデルのリスト（上から順に試行）
-                // ※ご自身の環境でProモデルを優先したい場合は、この順番を入れ替えてください。
+                // プロモデルでのクォータ制限(429エラー)を回避するため、無料枠が広いFlashモデルを最優先に変更
                 const preferredModels = [
-                    'gemini-2.5-flash-preview-09-2025', // 現在のプレビュー環境用（最優先）
-                    'gemini-2.5-pro',
-                    'gemini-1.5-pro-latest',
-                    'gemini-1.5-pro',
+                    'gemini-2.5-flash-preview-09-2025', // Canvas等プレビュー環境用
                     'gemini-2.5-flash',
                     'gemini-1.5-flash-latest',
-                    'gemini-1.5-flash'
+                    'gemini-1.5-flash',
+                    'gemini-2.5-pro', // 予備
+                    'gemini-1.5-pro'  // 予備
                 ];
 
                 for (const preferred of preferredModels) {
                     if (availableModels.includes(preferred)) {
                         currentBestModel = preferred;
-                        console.log(`[Model Auto-Select] 選択されたモデル: ${currentBestModel}`);
+                        addLog("INFO", `モデルを選定しました: ${currentBestModel}`);
                         return currentBestModel;
                     }
                 }
 
-                // リストに見つからなければ利用可能なflashモデルにフォールバック
                 currentBestModel = availableModels.find(m => m.includes('flash')) || 'gemini-1.5-flash';
-                console.log(`[Model Auto-Select] フォールバックモデル: ${currentBestModel}`);
+                addLog("WARN", `優先モデルが見つからないためフォールバックします: ${currentBestModel}`);
                 return currentBestModel;
 
             } catch (e) {
-                console.warn("[Model Auto-Select Error] モデル一覧の取得に失敗しました。デフォルトを使用します。", e);
-                // 取得失敗時の安全なフォールバック
-                currentBestModel = 'gemini-2.5-flash-preview-09-2025';
+                addLog("WARN", "モデル一覧の取得に失敗したため、デフォルトを使用します。", e.message);
+                currentBestModel = 'gemini-1.5-flash';
                 return currentBestModel;
             }
         }
 
-        // 指数関数的バックオフ機能を追加した通信関数
         async function callGeminiAPI(payload, maxRetries = 4) {
             const model = await getBestModel();
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+            // リクエスト内容をログに記録 (長すぎるためtoolsやconfigは省略して記録)
+            const logPayload = { ...payload };
+            if(logPayload.contents) logPayload.contentsPreview = logPayload.contents[0].parts[0].text.substring(0, 100) + '...';
+            addLog("INFO", "Gemini API リクエスト準備完了", { model: model, payloadPreview: logPayload.contentsPreview });
 
             let delay = 3000; 
 
             for (let i = 0; i < maxRetries; i++) {
                 try {
+                    addLog("INFO", `APIへの通信を実行中 (${i+1}/${maxRetries}回目)`);
                     const response = await fetch(url, { 
                         method: 'POST', 
                         headers: { 'Content-Type': 'application/json' }, 
@@ -756,42 +812,65 @@
 
                     if (response.ok) {
                         const data = await response.json();
-                        if (data.candidates && data.candidates[0].content) return data;
-                        throw new Error("APIからの応答が空でした。");
+                        if (data.candidates && data.candidates[0].content) {
+                            addLog("SUCCESS", `API通信に成功しました (${i+1}回目)`);
+                            return data;
+                        }
+                        throw new Error("APIからの応答に content が含まれていません。");
                     }
 
-                    if (response.status === 401) throw new Error("APIキーが無効です");
-
                     const errText = await response.text();
+                    let errMsg = errText;
+                    try { errMsg = JSON.parse(errText).error.message; } catch(e){}
                     
+                    addLog("WARN", `API通信非正常終了 Status: ${response.status}`, { status: response.status, errorText: errMsg });
+
+                    if (response.status === 400 || response.status === 401 || response.status === 403) {
+                        if (errMsg.includes("API key not valid")) {
+                            throw new Error("APIキーが無効です");
+                        }
+                    }
+
                     if (response.status === 429) {
-                        console.warn(`[429 制限] ${delay/1000}秒待機して再試行します... (${i+1}/${maxRetries})`);
+                        addLog("WARN", `レートリミット(429)を検出。${delay/1000}秒待機します...`);
                         await new Promise(r => setTimeout(r, delay));
                         delay *= 2; 
                         continue;
                     }
 
                     if (response.status === 400 && payload.tools) {
-                        console.warn(`[400 エラー] 検索ツールを無効化して修復実行...`);
+                        addLog("WARN", "400エラーのため、検索ツール(tools)を外して修復リクエストを実行します");
                         const fallbackPayload = { ...payload };
                         delete fallbackPayload.tools;
                         const fbResponse = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fallbackPayload) });
                         if (fbResponse.ok) {
                             const data = await fbResponse.json();
-                            if (data.candidates && data.candidates[0].content) return data;
+                            if (data.candidates && data.candidates[0].content) {
+                                addLog("SUCCESS", "修復リクエスト(ツールなし)で成功しました");
+                                return data;
+                            }
+                        } else {
+                            const fbErrText = await fbResponse.text();
+                            let fbErrMsg = fbErrText;
+                            try { fbErrMsg = JSON.parse(fbErrText).error.message; } catch(e){}
+                            addLog("ERROR", `修復リクエストも失敗しました Status: ${fbResponse.status}`, fbErrMsg);
+                            throw new Error(`Google API エラー (${fbResponse.status}): ${fbErrMsg}`);
                         }
-                        throw new Error(`修復通信も失敗しました (${fbResponse.status})`);
                     }
 
-                    throw new Error(`APIエラー (${response.status})`);
+                    throw new Error(`Google API エラー (${response.status}): ${errMsg}`);
                 } catch (e) {
-                    if (e.message.includes("APIキーが無効")) throw e;
+                    if (e.message.includes("APIキーが無効") || e.message.includes("Google API エラー (400)")) {
+                        addLog("ERROR", "再試行不可能なエラーのため処理を中断します", e.message);
+                        throw e; 
+                    }
                     
                     if (i < maxRetries - 1) {
-                        console.warn(`[通信エラー] ${delay/1000}秒待機して再試行します...`, e);
+                        addLog("WARN", `例外エラー発生。${delay/1000}秒待機後に再試行します`, e.message);
                         await new Promise(r => setTimeout(r, delay));
                         delay *= 2;
                     } else {
+                        addLog("ERROR", `最大リトライ回数(${maxRetries}回)に到達しました`, e.message);
                         throw e; 
                     }
                 }
@@ -807,6 +886,36 @@
         }
 
         function safeSetText(id, text) { const el = document.getElementById(id); if (el) el.textContent = text || "---"; }
+
+        // --- 確実なJSON抽出関数 ---
+        function extractJSON(str) {
+            try {
+                return JSON.parse(str);
+            } catch(e) {}
+            
+            const startObj = str.indexOf('{');
+            const startArr = str.indexOf('[');
+            const endObj = str.lastIndexOf('}');
+            const endArr = str.lastIndexOf(']');
+            
+            let start = -1;
+            let end = -1;
+            
+            if (startObj !== -1 && startArr !== -1) { start = Math.min(startObj, startArr); } 
+            else { start = Math.max(startObj, startArr); }
+            
+            if (endObj !== -1 && endArr !== -1) { end = Math.max(endObj, endArr); } 
+            else { end = Math.max(endObj, endArr); }
+            
+            if (start !== -1 && end !== -1 && end >= start) {
+                try {
+                    return JSON.parse(str.substring(start, end + 1));
+                } catch(e) {
+                    addLog("ERROR", "JSON抽出パース失敗", { text: str.substring(start, end + 1), error: e.message });
+                }
+            }
+            throw new Error("AIがJSONフォーマットで回答しませんでした。再度お試しください。");
+        }
 
         function renderSavedScan() {
             const saved = JSON.parse(localStorage.getItem('autopilot_saved_scan_v1'));
@@ -830,9 +939,12 @@
             errorMsg.classList.add('hidden');
             
             renderDiscoverResults(saved.data);
+            addLog("INFO", "保存されたスキャンデータを読み込みました");
         }
 
         async function startAutoPilotMultiStep(isUpdate = false) {
+            addLog("INFO", `【新規発掘スキャン】開始 (Update: ${isUpdate})`);
+            
             const segment = document.getElementById('setting-segment').value;
             const timeframe = document.getElementById('setting-timeframe').value;
             const priceMin = document.getElementById('setting-price-min').value;
@@ -876,41 +988,20 @@
             loadingPanel.classList.add('flex');
 
             try {
+                const jsonFormat = `{
+                    "marketSignal": { "status": "GREEN/YELLOW/RED", "reason": "string" },
+                    "sectorHeatmap": [{ "sectorName": "string", "heat": "HOT/WARM/COLD", "reason": "string" }],
+                    "ranking20": [{ "rank": 1, "ticker": "string", "companyName": "string", "sector": "string", "score": 90, "reason": "string" }]
+                }`;
+
                 const step1Payload = {
-                    contents: [{ parts: [{ text: `以下の検索条件とユーザーの要望に従って、最新の経済ニュースを分析してください。\n\n【検索条件】\n${conditionText}${diffInstruction}\n\n【指示】\n1. 指定された市場における資金流入(HOT)と流出(COLD)のヒートマップを作成してください。\n2. 条件を満たす、今初心者が買うべき有望な【日本株おすすめランキングTOP20銘柄】を作成してください。\n※ティッカーシンボルは日本の証券コード（例: 7203）のみを出力してください。米国株や他国の銘柄は絶対に含めないでください。` }] }],
-                    systemInstruction: { parts: [{ text: "あなたは日本株に特化したプロの証券アナリストです。必ずJSONで出力してください。" }] },
-                    tools: [{ google_search: {} }],
-                    generationConfig: {
-                        responseMimeType: "application/json",
-                        responseSchema: {
-                            type: "OBJECT",
-                            properties: {
-                                marketSignal: { type: "OBJECT", properties: { status: { type: "STRING" }, reason: { type: "STRING" } }, required: ["status", "reason"] },
-                                sectorHeatmap: { type: "ARRAY", items: { type: "OBJECT", properties: { sectorName: { type: "STRING" }, heat: { type: "STRING" }, reason: { type: "STRING" } } } },
-                                ranking20: { 
-                                    type: "ARRAY", 
-                                    items: { 
-                                        type: "OBJECT", 
-                                        properties: { 
-                                            rank: { type: "INTEGER" }, 
-                                            ticker: { type: "STRING" }, 
-                                            companyName: { type: "STRING" },
-                                            sector: { type: "STRING" },
-                                            score: { type: "INTEGER", description: "AIによるおすすめ度(100点満点)" },
-                                            reason: { type: "STRING", description: "推奨する理由を1〜2文で簡潔に" }
-                                        },
-                                        required: ["rank", "ticker", "companyName", "sector", "score", "reason"]
-                                    }, 
-                                    description: "おすすめランキング20選" 
-                                }
-                            },
-                            required: ["marketSignal", "sectorHeatmap", "ranking20"]
-                        }
-                    }
+                    contents: [{ parts: [{ text: `以下の検索条件とユーザーの要望に従って、最新の経済ニュースを分析してください。\n\n【検索条件】\n${conditionText}${diffInstruction}\n\n【指示】\n1. 指定された市場における資金流入(HOT)と流出(COLD)のヒートマップを作成してください。\n2. 条件を満たす、今初心者が買うべき有望な【日本株おすすめランキングTOP20銘柄】を作成してください。\n※ティッカーシンボルは日本の証券コード（例: 7203）のみを出力してください。\n\n【出力形式】\n必ず以下のJSONフォーマットのみを出力してください。マークダウン(\`\`\`json)や他の文章は一切不要です。\n${jsonFormat}` }] }],
+                    systemInstruction: { parts: [{ text: "あなたは日本株に特化したプロの証券アナリストです。回答は生のJSON文字列のみを出力してください。" }] },
+                    tools: [{ googleSearch: {} }]
                 };
 
                 const step1Result = await callGeminiAPI(step1Payload);
-                const finalData = JSON.parse(step1Result.candidates[0].content.parts[0].text);
+                const finalData = extractJSON(step1Result.candidates[0].content.parts[0].text);
 
                 if (!finalData.ranking20 || finalData.ranking20.length === 0) {
                     throw new Error("条件に合致する銘柄が見つかりませんでした。条件（株価や利回りなど）を緩めて再度お試しください。");
@@ -921,22 +1012,20 @@
                     conditionText: conditionText,
                     data: finalData
                 }));
+                addLog("INFO", "【新規発掘スキャン】完了");
                 renderSavedScan();
-
                 renderDiscoverResults(finalData);
 
             } catch (error) {
-                console.error("スキャンエラー:", error);
+                addLog("ERROR", "【新規発掘スキャン】失敗", error.message);
                 if (error.message.includes("APIキーが無効") || error.message.includes("401")) {
                     errorMsg.innerHTML = `APIキー（パスワード）が間違っています。<br><button onclick="resetApiKey()" class="mt-4 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white font-bold text-sm hover:bg-slate-700 transition-colors inline-flex items-center"><i data-lucide="key" class="w-4 h-4 mr-2"></i> キーを再入力する</button>`;
-                } else if (error.message.includes("複数回失敗")) {
-                    errorMsg.innerHTML = `AIの処理制限（混雑）によりスキャンを完了できませんでした。<br>数分待ってから再度お試しください。`;
                 } else {
-                    errorMsg.innerHTML = `AIの処理中にエラーが発生しました:<br><span class="text-xs break-all text-red-400 font-mono">${error.message}</span>`;
+                    errorMsg.innerHTML = `処理中にエラーが発生しました:<br><span class="text-[11px] break-all text-red-400 font-mono mt-2 block">${error.message}</span>`;
+                    errorMsg.innerHTML += getLogButtonHTML(); // ログダウンロードボタンを追加
                 }
                 errorMsg.classList.remove('hidden');
                 document.getElementById('intro-panel').style.display = 'block';
-                lucide.createIcons();
             } finally {
                 loadingPanel.classList.add('hidden');
                 loadingPanel.classList.remove('flex');
@@ -948,29 +1037,34 @@
             const sigLamp = document.getElementById('signal-color');
             const sigText = document.getElementById('signal-text');
             sigLamp.className = 'w-20 h-20 rounded-full flex items-center justify-center mb-4 relative z-10'; 
-            if (data.marketSignal.status === 'GREEN') { sigLamp.classList.add('bg-green-500/20', 'text-green-400', 'shadow-[0_0_30px_rgba(34,197,94,0.4)]'); sigText.textContent = '買いシグナル'; sigText.className = 'text-2xl font-black text-green-400 mb-2 relative z-10 tracking-wider'; } 
-            else if (data.marketSignal.status === 'YELLOW') { sigLamp.classList.add('bg-yellow-500/20', 'text-yellow-400', 'shadow-[0_0_30px_rgba(234,179,8,0.4)]'); sigText.textContent = '警戒 (注意)'; sigText.className = 'text-2xl font-black text-yellow-400 mb-2 relative z-10 tracking-wider'; } 
+            
+            const sigStatus = (data.marketSignal && data.marketSignal.status) ? data.marketSignal.status : "YELLOW";
+            const sigReason = (data.marketSignal && data.marketSignal.reason) ? data.marketSignal.reason : "情報が取得できませんでした。";
+
+            if (sigStatus === 'GREEN' || sigStatus.includes('買')) { sigLamp.classList.add('bg-green-500/20', 'text-green-400', 'shadow-[0_0_30px_rgba(34,197,94,0.4)]'); sigText.textContent = '買いシグナル'; sigText.className = 'text-2xl font-black text-green-400 mb-2 relative z-10 tracking-wider'; } 
+            else if (sigStatus === 'YELLOW' || sigStatus.includes('注意')) { sigLamp.classList.add('bg-yellow-500/20', 'text-yellow-400', 'shadow-[0_0_30px_rgba(234,179,8,0.4)]'); sigText.textContent = '警戒 (注意)'; sigText.className = 'text-2xl font-black text-yellow-400 mb-2 relative z-10 tracking-wider'; } 
             else { sigLamp.classList.add('bg-red-500/20', 'text-red-400', 'shadow-[0_0_30px_rgba(239,68,68,0.4)]'); sigText.textContent = '見送り推奨'; sigText.className = 'text-2xl font-black text-red-400 mb-2 relative z-10 tracking-wider'; }
             
-            safeSetText('signal-reason', data.marketSignal.reason);
+            safeSetText('signal-reason', sigReason);
 
             const discoverSpeakBtn = document.getElementById('discover-speak-btn');
             if(discoverSpeakBtn) {
                 discoverSpeakBtn.classList.remove('hidden');
-                discoverSpeakBtn.onclick = () => speakText(`現在の相場状況は、${sigText.textContent}です。${data.marketSignal.reason}`, discoverSpeakBtn);
+                discoverSpeakBtn.onclick = () => speakText(`現在の相場状況は、${sigText.textContent}です。${sigReason}`, discoverSpeakBtn);
             }
 
             const heatmapContainer = document.getElementById('heatmap-container');
             heatmapContainer.innerHTML = '';
-            if (data.sectorHeatmap) {
+            if (data.sectorHeatmap && Array.isArray(data.sectorHeatmap)) {
                 data.sectorHeatmap.forEach(item => {
                     const div = document.createElement('div');
-                    div.className = `p-3 rounded-xl border flex flex-col justify-center items-center text-center ${item.heat === 'HOT' ? 'heat-hot' : item.heat === 'WARM' ? 'heat-warm' : 'heat-cold'}`;
-                    const icon = item.heat === 'HOT' ? 'flame' : item.heat === 'WARM' ? 'thermometer' : 'snowflake';
+                    const heatStatus = item.heat || 'WARM';
+                    div.className = `p-3 rounded-xl border flex flex-col justify-center items-center text-center ${heatStatus === 'HOT' ? 'heat-hot' : heatStatus === 'WARM' ? 'heat-warm' : 'heat-cold'}`;
+                    const icon = heatStatus === 'HOT' ? 'flame' : heatStatus === 'WARM' ? 'thermometer' : 'snowflake';
                     div.innerHTML = `
-                        <div class="text-[9px] font-bold text-white/70 mb-1 tech-font flex items-center tracking-widest"><i data-lucide="${icon}" class="w-3 h-3 mr-1"></i>${item.heat}</div>
-                        <div class="text-sm font-bold text-white leading-tight mb-1">${item.sectorName}</div>
-                        <div class="text-[10px] text-white/70 leading-tight line-clamp-2">${item.reason}</div>
+                        <div class="text-[9px] font-bold text-white/70 mb-1 tech-font flex items-center tracking-widest"><i data-lucide="${icon}" class="w-3 h-3 mr-1"></i>${heatStatus}</div>
+                        <div class="text-sm font-bold text-white leading-tight mb-1">${item.sectorName || '不明'}</div>
+                        <div class="text-[10px] text-white/70 leading-tight line-clamp-2">${item.reason || ''}</div>
                     `;
                     heatmapContainer.appendChild(div);
                 });
@@ -979,8 +1073,8 @@
             const listContainer = document.getElementById('portfolio-list');
             listContainer.innerHTML = '';
             
-            if (data.ranking20) {
-                data.ranking20.sort((a, b) => a.rank - b.rank).forEach((item) => {
+            if (data.ranking20 && Array.isArray(data.ranking20)) {
+                data.ranking20.sort((a, b) => (a.rank || 99) - (b.rank || 99)).forEach((item) => {
                     const template = document.getElementById('ranking-card-template');
                     if(!template) return;
                     const clone = template.content.cloneNode(true);
@@ -989,17 +1083,17 @@
 
                     const rankEl = clone.querySelector('.rank-text');
                     if (rankEl) {
-                        rankEl.textContent = item.rank;
+                        rankEl.textContent = item.rank || '-';
                         if (item.rank === 1) { rankEl.classList.add('text-yellow-400', 'rank-badge-1'); rankEl.classList.remove('text-slate-600'); }
                         else if (item.rank === 2) { rankEl.classList.add('text-slate-300', 'rank-badge-2'); rankEl.classList.remove('text-slate-600'); }
                         else if (item.rank === 3) { rankEl.classList.add('text-amber-500', 'rank-badge-3'); rankEl.classList.remove('text-slate-600'); }
                     }
 
                     const sb = clone.querySelector('.sector-badge');
-                    if(sb) sb.innerHTML = `<i data-lucide="tag" class="w-2.5 h-2.5 inline mr-1 -mt-0.5 text-slate-400"></i>${item.sector}`;
+                    if(sb) sb.innerHTML = `<i data-lucide="tag" class="w-2.5 h-2.5 inline mr-1 -mt-0.5 text-slate-400"></i>${item.sector || '不明'}`;
                     
                     const scoreEl = clone.querySelector('.score-text');
-                    if(scoreEl) scoreEl.innerHTML = `<i data-lucide="star" class="w-3 h-3 inline mr-1"></i>${item.score}pt`;
+                    if(scoreEl) scoreEl.innerHTML = `<i data-lucide="star" class="w-3 h-3 inline mr-1"></i>${item.score || 0}pt`;
 
                     safeSetClone('.ticker-text', item.ticker);
                     safeSetClone('.company-text', item.companyName);
@@ -1008,7 +1102,6 @@
                     const deepBtn = clone.querySelector('.deep-scan-btn');
                     if(deepBtn) deepBtn.addEventListener('click', () => openDeepScanModal(item.ticker, item.companyName, false));
                     
-                    // --- 追加: 優待・詳細へのリンク (Yahoo!ファイナンス) ---
                     const benefitLink = clone.querySelector('.benefit-link-btn');
                     if(benefitLink) benefitLink.href = `https://finance.yahoo.co.jp/quote/${item.ticker}.T`;
                     
@@ -1088,7 +1181,6 @@
                 const whyMovedResult = clone.querySelector('.why-moved-result');
                 if(whyMovedBtn && whyMovedResult) whyMovedBtn.addEventListener('click', () => explainPriceMovement(asset.ticker, whyMovedBtn, whyMovedResult));
 
-                // --- 追加: 優待・詳細へのリンク (Yahoo!ファイナンス) ---
                 const benefitLink = clone.querySelector('.benefit-link-btn');
                 if(benefitLink) benefitLink.href = `https://finance.yahoo.co.jp/quote/${asset.ticker}.T`;
 
@@ -1102,58 +1194,87 @@
             const assets = getMyAssets();
             if(assets.length === 0) return;
 
+            addLog("INFO", "【ポートフォリオ診断】開始");
             errorMsg.classList.add('hidden');
-            loadingTitle.textContent = "データを分析・統合中...";
-            loadingText.textContent = "ポートフォリオの相関性と個別銘柄を深く分析中...";
-            loadingPanel.classList.remove('hidden');
-            loadingPanel.classList.add('flex');
-
-            const tickersStr = assets.map(a => a.ticker).join(', ');
+            loadingTitle.textContent = "個別銘柄を順次分析中...";
+            loadingPanel.classList.remove('hidden'); loadingPanel.classList.add('flex');
 
             try {
-                const payload = {
-                    contents: [{ parts: [{ text: `以下の保有銘柄リスト（日本株）について、最新の決算、国内マクロ経済の動向などを深く検索し、1.アクション判定(日本語)、2.「相関性・偏りリスク」の診断を行ってください。銘柄: ${tickersStr}` }] }],
-                    systemInstruction: { parts: [{ text: "プロの日本株ポートフォリオマネージャーとしてJSONで出力。" }] },
-                    tools: [{ google_search: {} }],
-                    generationConfig: {
-                        responseMimeType: "application/json",
-                        responseSchema: { type: "OBJECT", properties: { correlationRisk: { type: "STRING" }, results: { type: "ARRAY", items: { type: "OBJECT", properties: { ticker: { type: "STRING" }, verdict: { type: "STRING" }, advice: { type: "STRING" }, expectedYield: {type: "NUMBER", description: "予想配当利回り"} }, required: ["ticker", "verdict", "advice"] } } }, required: ["correlationRisk", "results"] }
-                    }
-                };
+                const tickersStr = assets.map(a => a.ticker).join(', ');
 
-                const result = await callGeminiAPI(payload);
-                const aiData = JSON.parse(result.candidates[0].content.parts[0].text);
+                loadingText.textContent = "ポートフォリオ全体の相関性とリスクを診断中...";
+                const payloadTotal = {
+                    contents: [{ parts: [{ text: `保有銘柄リスト（${tickersStr}）の「相関性・偏りリスク」を診断してください。\n\n【出力形式】\n必ず以下のJSONフォーマットのみを出力してください。\n{ "correlationRisk": "string" }` }] }],
+                    systemInstruction: { parts: [{ text: "プロのマネージャーとして出力。回答はJSONのみ。" }] },
+                    tools: [{ googleSearch: {} }]
+                };
+                
+                const resultTotal = await callGeminiAPI(payloadTotal);
+                const aiDataTotal = extractJSON(resultTotal.candidates[0].content.parts[0].text);
                 
                 const commentEl = document.getElementById('my-market-commentary');
-                safeSetText('my-commentary-text', aiData.correlationRisk);
+                safeSetText('my-commentary-text', aiDataTotal.correlationRisk);
                 if(commentEl) commentEl.classList.remove('hidden');
 
                 const portfolioSpeakBtn = document.getElementById('portfolio-speak-btn');
-                if(portfolioSpeakBtn) portfolioSpeakBtn.onclick = () => speakText(aiData.correlationRisk, portfolioSpeakBtn);
+                if(portfolioSpeakBtn) portfolioSpeakBtn.onclick = () => speakText(aiDataTotal.correlationRisk, portfolioSpeakBtn);
 
-                const updatedAssets = assets.map(asset => {
-                    const scanData = (aiData.results || []).find(r => r.ticker.toUpperCase() === asset.ticker.toUpperCase());
-                    if (scanData) { return { ...asset, verdict: scanData.verdict, advice: scanData.advice }; }
-                    return asset;
-                });
-                saveMyAssets(updatedAssets);
-                renderMyPortfolio();
+                for (let i = 0; i < assets.length; i++) {
+                    const asset = assets[i];
+                    loadingText.innerHTML = `個別分析中... <span class="text-purple-400 font-bold">${i + 1} / ${assets.length}</span><br><span class="text-xs text-slate-500">銘柄: ${asset.ticker}</span>`;
+                    
+                    const payloadSingle = {
+                        contents: [{ parts: [{ text: `日本株「${asset.ticker}」の最新アクション判定（BUY/HOLD/SELL）と簡潔なアドバイスを出力せよ。\n\n【出力形式】\n必ず以下のJSONフォーマットのみを出力してください。\n{ "verdict": "BUY/HOLD/SELL", "advice": "string" }` }] }],
+                        systemInstruction: { parts: [{ text: "プロのアナリストとして出力。回答はJSONのみ。" }] },
+                        tools: [{ googleSearch: {} }]
+                    };
+
+                    try {
+                        const resultSingle = await callGeminiAPI(payloadSingle);
+                        const dataSingle = extractJSON(resultSingle.candidates[0].content.parts[0].text);
+                        
+                        assets[i].verdict = dataSingle.verdict;
+                        assets[i].advice = dataSingle.advice;
+                        saveMyAssets(assets);
+                        renderMyPortfolio(); 
+                    } catch (err) {
+                        addLog("WARN", `【ポートフォリオ診断】個別銘柄(${asset.ticker})の分析に失敗`, err.message);
+                        assets[i].verdict = "ERROR";
+                        assets[i].advice = "分析に失敗しました。後で再試行してください。";
+                    }
+
+                    if (i < assets.length - 1) {
+                        await new Promise(r => setTimeout(r, 1500));
+                    }
+                }
+                addLog("INFO", "【ポートフォリオ診断】完了");
 
             } catch (error) {
-                console.error("ポートフォリオスキャンエラー:", error);
+                addLog("ERROR", "【ポートフォリオ診断】失敗", error.message);
                 if (error.message.includes("APIキーが無効")) {
                     errorMsg.innerHTML = `APIキー（パスワード）が間違っています。<br><button onclick="resetApiKey()" class="mt-4 text-purple-400 underline font-bold text-sm hover:text-purple-300">キーを再入力する</button>`;
                 } else {
-                    errorMsg.innerHTML = `スキャンに失敗しました:<br><span class="text-xs break-all text-red-400 font-mono">${error.message}</span>`;
+                    errorMsg.innerHTML = `スキャンに失敗しました:<br><span class="text-[11px] break-all text-red-400 font-mono block mt-2">${error.message}</span>`;
+                    errorMsg.innerHTML += getLogButtonHTML();
                 }
                 errorMsg.classList.remove('hidden');
             } finally {
-                loadingPanel.classList.add('hidden');
-                loadingPanel.classList.remove('flex');
+                loadingPanel.classList.add('hidden'); loadingPanel.classList.remove('flex');
             }
         }
 
         async function explainPriceMovement(ticker, btnElement, resultElement) {
+            const cacheKey = `news_${ticker}`;
+            const cachedNews = CacheSystem.get(cacheKey, 21600000);
+            
+            if (cachedNews) {
+                resultElement.innerHTML = `<strong>💡 AIの解説 (キャッシュ):</strong><br>${cachedNews}`;
+                resultElement.classList.remove('hidden');
+                addLog("INFO", "【なぜ動いた？】キャッシュから表示", ticker);
+                return;
+            }
+
+            addLog("INFO", "【なぜ動いた？】APIリクエスト開始", ticker);
             const originalText = btnElement.innerHTML;
             btnElement.innerHTML = `<i data-lucide="loader-2" class="w-3 h-3 mr-2 animate-spin text-amber-400"></i> 最新ニュースを検索中...`;
             btnElement.disabled = true;
@@ -1162,43 +1283,30 @@
 
             try {
                 const payload = {
-                    contents: [{ parts: [{ text: `日本の証券コード「${ticker}」の今日の株価がなぜ動いているのか（上がっている、あるいは下がっている理由）を検索し、投資初心者に向けて1〜2文で優しく教えてください。` }] }],
+                    contents: [{ parts: [{ text: `日本の証券コード「${ticker}」の今日の株価がなぜ動いているのかを検索し、投資初心者に向けて1〜2文で優しく教えてください。` }] }],
                     systemInstruction: { parts: [{ text: "優しく分かりやすい口調で。プレーンテキストで出力。" }] },
-                    tools: [{ google_search: {} }]
+                    tools: [{ googleSearch: {} }] 
                 };
-
                 const result = await callGeminiAPI(payload);
                 const answer = result.candidates[0].content.parts[0].text;
                 
+                CacheSystem.set(cacheKey, answer);
+
                 resultElement.innerHTML = `<strong>💡 AIの解説:</strong><br>${answer}`;
                 resultElement.classList.remove('hidden');
+                addLog("INFO", "【なぜ動いた？】完了", ticker);
             } catch (error) {
-                resultElement.innerHTML = `ニュースの取得に失敗しました。`;
+                addLog("ERROR", "【なぜ動いた？】失敗", error.message);
+                resultElement.innerHTML = `ニュースの取得に失敗しました。<br><span class="text-[10px] text-red-400 break-all">${error.message}</span>`;
                 resultElement.classList.remove('hidden');
             } finally {
-                btnElement.innerHTML = originalText;
-                btnElement.disabled = false;
-                lucide.createIcons();
+                btnElement.innerHTML = originalText; btnElement.disabled = false; lucide.createIcons();
             }
         }
 
-        /* =========================================================
-           機能4: 保存済み企業カルテ管理
-        ========================================================= */
-        function getSavedReports() {
-            return JSON.parse(localStorage.getItem('autopilot_saved_reports_v1') || '{}');
-        }
-
-        function saveSavedReports(reports) {
-            localStorage.setItem('autopilot_saved_reports_v1', JSON.stringify(reports));
-        }
-
-        function deleteSavedReport(ticker) {
-            const reports = getSavedReports();
-            delete reports[ticker];
-            saveSavedReports(reports);
-            renderSavedReports();
-        }
+        function getSavedReports() { return JSON.parse(localStorage.getItem('autopilot_saved_reports_v1') || '{}'); }
+        function saveSavedReports(reports) { localStorage.setItem('autopilot_saved_reports_v1', JSON.stringify(reports)); }
+        function deleteSavedReport(ticker) { const reports = getSavedReports(); delete reports[ticker]; saveSavedReports(reports); renderSavedReports(); addLog("INFO", "保存済みカルテを削除", ticker); }
 
         function renderSavedReports() {
             const reports = getSavedReports();
@@ -1209,10 +1317,7 @@
             const tickers = Object.keys(reports);
             list.innerHTML = '';
             
-            if (tickers.length === 0) {
-                emptyMsg.classList.remove('hidden');
-                return;
-            }
+            if (tickers.length === 0) { emptyMsg.classList.remove('hidden'); return; }
             emptyMsg.classList.add('hidden');
 
             tickers.sort((a, b) => reports[b].lastUpdated - reports[a].lastUpdated).forEach(ticker => {
@@ -1237,48 +1342,34 @@
             lucide.createIcons();
         }
 
-        /* =========================================================
-           機能3: 企業カルテ (Deep Scan)
-        ========================================================= */
         async function openDeepScanModal(ticker, companyName, forceUpdate = false) {
-            safeSetText('modal-title', ticker);
-            safeSetText('modal-subtitle', companyName);
+            addLog("INFO", `【企業カルテ表示】開始 (ticker: ${ticker}, forceUpdate: ${forceUpdate})`);
+            safeSetText('modal-title', ticker); safeSetText('modal-subtitle', companyName);
             document.getElementById('modal-loading').classList.remove('hidden');
             document.getElementById('modal-content-data').classList.add('hidden');
-            const errEl = document.getElementById('modal-error-message');
-            if(errEl) errEl.classList.add('hidden');
+            const errEl = document.getElementById('modal-error-message'); if(errEl) errEl.classList.add('hidden');
             
-            modal.classList.remove('hidden');
-            setTimeout(() => modal.classList.add('opacity-100'), 10);
+            modal.classList.remove('hidden'); setTimeout(() => modal.classList.add('opacity-100'), 10);
 
             let tvTicker = ticker;
-            if (/^\d{4}$/.test(ticker)) {
-                tvTicker = `TSE:${ticker}`;
-            } else if (/^\d{4}\.T$/i.test(ticker)) {
-                tvTicker = `TSE:${ticker.replace(/\.T$/i, '')}`;
-            }
+            if (/^\d{4}$/.test(ticker)) { tvTicker = `TSE:${ticker}`; } else if (/^\d{4}\.T$/i.test(ticker)) { tvTicker = `TSE:${ticker.replace(/\.T$/i, '')}`; }
 
             const tvContainer = document.getElementById('tv-chart-container');
-            if(tvContainer) {
-                tvContainer.innerHTML = `<iframe src="https://s.tradingview.com/widgetembed/?symbol=${tvTicker}&interval=D&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=131722&theme=dark&style=3&timezone=Asia%2FTokyo&locale=ja" width="100%" height="100%" frameborder="0" allowtransparency="true" scrolling="no" allowfullscreen=""></iframe>`;
-            }
-
-            if (!forceUpdate && sessionReportCache.has(ticker)) {
-                document.getElementById('modal-loading').classList.add('hidden');
-                renderDeepScanData(sessionReportCache.get(ticker));
-                return;
-            }
+            if(tvContainer) { tvContainer.innerHTML = `<iframe src="https://s.tradingview.com/widgetembed/?symbol=${tvTicker}&interval=D&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=131722&theme=dark&style=3&timezone=Asia%2FTokyo&locale=ja" width="100%" height="100%" frameborder="0" allowtransparency="true" scrolling="no" allowfullscreen=""></iframe>`; }
 
             const savedReports = getSavedReports();
             
+            if (!forceUpdate && sessionReportCache.has(ticker)) {
+                addLog("INFO", "【企業カルテ】セッションキャッシュから表示");
+                document.getElementById('modal-loading').classList.add('hidden'); renderDeepScanData(sessionReportCache.get(ticker)); return;
+            }
             if (!forceUpdate && savedReports[ticker]) {
+                addLog("INFO", "【企業カルテ】ローカルストレージから表示");
                 sessionReportCache.set(ticker, savedReports[ticker].data);
-                document.getElementById('modal-loading').classList.add('hidden');
-                renderDeepScanData(savedReports[ticker].data);
-                return;
+                document.getElementById('modal-loading').classList.add('hidden'); renderDeepScanData(savedReports[ticker].data); return;
             }
 
-            const loadingTexts = ["SNS感情を解析中...", "機関投資家の動向を照会中...", "テクニカル指標を分析中...", "未来のシナリオと注目イベントを生成中...", "AI総合評価チャートを算出中..."];
+            const loadingTexts = ["データを収集中...", "シナリオを生成中...", "AI総合評価を算出中..."];
             let ltIdx = 0;
             if(loadingInterval) clearInterval(loadingInterval);
             loadingInterval = setInterval(() => { safeSetText('modal-loading-text', loadingTexts[ltIdx % loadingTexts.length]); ltIdx++; }, 1500);
@@ -1287,65 +1378,68 @@
                 const timeframe = window.appSettings ? window.appSettings.timeframe : '直近1ヶ月';
                 let diffInstruction = '';
                 
-                if (forceUpdate && savedReports[ticker]) {
+                const isDiffUpdate = forceUpdate && savedReports[ticker];
+                const existingData = isDiffUpdate ? savedReports[ticker].data : null;
+                
+                if (isDiffUpdate) {
                     const lastDate = new Date(savedReports[ticker].lastUpdated).toLocaleDateString('ja-JP');
-                    diffInstruction = `\n\n【重要: 差分アップデート指示】\n前回の調査日は「${lastDate}」です。この日付以降に発生した最新ニュースや決算発表、マクロ変化を重点的に検索し、既存のデータ・評価を最新状態にアップデートしてください。`;
+                    diffInstruction = `\n\n【重要: 差分アップデート】前回の調査日「${lastDate}」以降の最新情報を検索・アップデートしてください。※事業内容などの基本データは不要です。`;
+                    document.getElementById('modal-loading-subtext').textContent = "過去のデータと最新のニュースを照合し、差分のみを更新しています...";
+                } else {
+                    document.getElementById('modal-loading-subtext').textContent = "Gemini AIが世界のニュース、非伝統的データ、シナリオを徹底分析しています...";
+                }
+
+                const jsonFormatObj = {
+                    geniusView: "string", veteranView: "string", macroView: "string", quantView: "string",
+                    finalVerdict: { decision: "BUY/HOLD/SELL", conclusion: "string" },
+                    scenarios: { 
+                        bull: { probability: 0, targetPrice: "string", condition: "string" }, 
+                        base: { probability: 0, targetPrice: "string", condition: "string" }, 
+                        bear: { probability: 0, targetPrice: "string", condition: "string" } 
+                    },
+                    catalystTimeline: [{ date: "string", event: "string", impact: "HIGH/MID/LOW" }],
+                    alternativeData: { sentiment: "string", insider: "string", technical: "string", supplyChain: "string" },
+                    radarScores: { growth: 0, value: 0, momentum: 0, safety: 0, macroTailwind: 0 }
+                };
+
+                if (!isDiffUpdate) {
+                    Object.assign(jsonFormatObj, {
+                        businessModel: "string", performance: "string", strengthHighlight: "string",
+                        financialHealth: "string", investmentActivities: "string", shareholderReturn: "string"
+                    });
                 }
 
                 const payload = {
-                    contents: [{ parts: [{ text: `日本の証券コード「${ticker}」の企業（日本国内市場）について、${timeframe}の情報を中心に深くGoogle検索し、以下の情報を完全な日本語でJSON出力してください。国内のニュースや日本語ソース、日本経済の動向を最優先して分析してください。${diffInstruction}
-1. 専門家AIチームの議論と最終判断
-2. 3つの未来シナリオ(Bull/Base/Bear)とその発生確率・ターゲット価格（日本円）
-3. 今後数ヶ月の国内の注目イベント(決算、日銀会合、国内規制など)のタイムライン
-4. 裏データ(国内SNS感情, 国内の内部者・機関投資家の動き, テクニカル, サプライチェーン)
-5. レーダーチャート用スコア(成長性,割安度,勢い,安全性,国内マクロ恩恵) 各10点満点
-6. 企業基本データ` }] }],
-                    systemInstruction: { parts: [{ text: "最高峰の日本株専属アナリストAIとして、すべて自然な日本語でJSON出力してください。" }] },
-                    tools: [{ google_search: {} }],
-                    generationConfig: {
-                        responseMimeType: "application/json",
-                        responseSchema: {
-                            type: "OBJECT",
-                            properties: {
-                                geniusView: { type: "STRING" }, veteranView: { type: "STRING" }, macroView: { type: "STRING" }, quantView: { type: "STRING" },
-                                finalVerdict: { type: "OBJECT", properties: { decision: { type: "STRING" }, conclusion: { type: "STRING" } }, required: ["decision", "conclusion"] },
-                                scenarios: {
-                                    type: "OBJECT",
-                                    properties: {
-                                        bull: { type: "OBJECT", properties: { probability: {type:"INTEGER"}, targetPrice: {type:"STRING"}, condition: {type:"STRING"} }, required: ["probability", "targetPrice"] },
-                                        base: { type: "OBJECT", properties: { probability: {type:"INTEGER"}, targetPrice: {type:"STRING"}, condition: {type:"STRING"} }, required: ["probability", "targetPrice"] },
-                                        bear: { type: "OBJECT", properties: { probability: {type:"INTEGER"}, targetPrice: {type:"STRING"}, condition: {type:"STRING"} }, required: ["probability", "targetPrice"] }
-                                    },
-                                    required: ["bull", "base", "bear"]
-                                },
-                                catalystTimeline: { type: "ARRAY", items: { type: "OBJECT", properties: { date: { type: "STRING" }, event: { type: "STRING" }, impact: { type: "STRING" } } } },
-                                alternativeData: { type: "OBJECT", properties: { sentiment: { type: "STRING" }, insider: { type: "STRING" }, technical: { type: "STRING" }, supplyChain: { type: "STRING" } } },
-                                radarScores: { type: "OBJECT", properties: { growth: {type:"INTEGER"}, value: {type:"INTEGER"}, momentum: {type:"INTEGER"}, safety: {type:"INTEGER"}, macroTailwind: {type:"INTEGER"} }, required: ["growth", "value", "momentum", "safety", "macroTailwind"] },
-                                businessModel: { type: "STRING" }, performance: { type: "STRING" }, strengthHighlight: { type: "STRING" },
-                                financialHealth: { type: "STRING" }, investmentActivities: { type: "STRING" }, shareholderReturn: { type: "STRING" }
-                            },
-                            required: ["geniusView", "veteranView", "macroView", "quantView", "finalVerdict", "radarScores"]
-                        }
-                    }
+                    contents: [{ parts: [{ text: `日本株「${ticker}」について${timeframe}の情報を中心に検索し、完全な日本語で分析してください。${diffInstruction}\n\n【出力形式】\n必ず以下のJSONフォーマットのみを出力してください。他の文章やマークダウン記法(\`\`\`json)は一切不要です。\n${JSON.stringify(jsonFormatObj, null, 2)}` }] }],
+                    systemInstruction: { parts: [{ text: "最高峰の日本株専属アナリストAI。回答は純粋なJSON文字列のみ。" }] },
+                    tools: [{ googleSearch: {} }]
                 };
                 
                 const result = await callGeminiAPI(payload);
                 clearInterval(loadingInterval);
-                const data = JSON.parse(result.candidates[0].content.parts[0].text);
+                const rawData = extractJSON(result.candidates[0].content.parts[0].text);
                 
-                savedReports[ticker] = { lastUpdated: Date.now(), companyName, data };
-                saveSavedReports(savedReports);
-                sessionReportCache.set(ticker, data);
-                
-                if (document.getElementById('tab-myportfolio').classList.contains('active')) {
-                    renderSavedReports();
-                }
+                const mappedData = {
+                    ...rawData,
+                    businessModel: isDiffUpdate ? existingData.businessModel : rawData.businessModel,
+                    performance: isDiffUpdate ? existingData.performance : rawData.performance,
+                    strengthHighlight: isDiffUpdate ? existingData.strengthHighlight : rawData.strengthHighlight,
+                    financialHealth: isDiffUpdate ? existingData.financialHealth : rawData.financialHealth,
+                    investmentActivities: isDiffUpdate ? existingData.investmentActivities : rawData.investmentActivities,
+                    shareholderReturn: isDiffUpdate ? existingData.shareholderReturn : rawData.shareholderReturn
+                };
 
+                savedReports[ticker] = { lastUpdated: Date.now(), companyName, data: mappedData };
+                saveSavedReports(savedReports);
+                sessionReportCache.set(ticker, mappedData);
+                
+                if (document.getElementById('tab-myportfolio').classList.contains('active')) renderSavedReports();
                 document.getElementById('modal-loading').classList.add('hidden');
-                renderDeepScanData(data); 
+                addLog("INFO", "【企業カルテ】API通信完了・画面更新");
+                renderDeepScanData(mappedData); 
 
             } catch (error) {
-                console.error("企業カルテ生成エラー:", error);
+                addLog("ERROR", "【企業カルテ】生成失敗", error.message);
                 if(loadingInterval) clearInterval(loadingInterval);
                 document.getElementById('modal-loading').classList.add('hidden');
                 const modalErrMsg = document.getElementById('modal-error-message');
@@ -1353,10 +1447,9 @@
                     if (error.message.includes("APIキーが無効")) {
                         modalErrMsg.innerHTML = `APIキー（パスワード）が間違っています。<br><button onclick="resetApiKey()" class="mt-3 px-3 py-1.5 bg-red-900/50 border border-red-500/50 rounded-lg text-white font-bold text-xs hover:bg-red-800 transition-colors inline-flex items-center"><i data-lucide="key" class="w-3 h-3 mr-1"></i> キーを再入力</button>`; 
                         lucide.createIcons();
-                    } else if (error.message.includes("複数回失敗")) {
-                        modalErrMsg.innerHTML = `AIの処理制限（混雑）によりカルテを生成できませんでした。<br>数分待ってから再度お試しください。`;
                     } else {
-                        modalErrMsg.innerHTML = `企業カルテの生成に失敗しました:<br><span class="text-xs break-all text-red-400 font-mono">${error.message}</span>`; 
+                        modalErrMsg.innerHTML = `企業カルテの生成に失敗しました:<br><span class="text-[11px] break-all text-red-400 font-mono block mt-2">${error.message}</span>`; 
+                        modalErrMsg.innerHTML += getLogButtonHTML();
                     }
                     modalErrMsg.classList.remove('hidden'); 
                 }
@@ -1364,10 +1457,8 @@
         }
 
         function renderDeepScanData(data) {
-            safeSetText('modal-genius-view', data.geniusView); 
-            safeSetText('modal-veteran-view', data.veteranView);
-            safeSetText('modal-macro-view', data.macroView); 
-            safeSetText('modal-quant-view', data.quantView);
+            safeSetText('modal-genius-view', data.geniusView); safeSetText('modal-veteran-view', data.veteranView);
+            safeSetText('modal-macro-view', data.macroView); safeSetText('modal-quant-view', data.quantView);
             
             const badge = document.getElementById('modal-decision-badge');
             if(badge && data.finalVerdict) {
@@ -1403,10 +1494,10 @@
             const tlContainer = document.getElementById('modal-timeline');
             if(tlContainer) {
                 tlContainer.innerHTML = '';
-                if(data.catalystTimeline) {
+                if(data.catalystTimeline && Array.isArray(data.catalystTimeline)) {
                     data.catalystTimeline.forEach(item => {
                         const div = document.createElement('div'); div.className = 'timeline-item';
-                        div.innerHTML = `<div class="flex items-center gap-2 mb-1"><span class="text-xs font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded">${item.date}</span><span class="text-[10px] impact-${item.impact} border border-current px-1.5 rounded">重要度: ${item.impact}</span></div><div class="text-sm text-slate-200">${item.event}</div>`;
+                        div.innerHTML = `<div class="flex items-center gap-2 mb-1"><span class="text-xs font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded">${item.date || '-'}</span><span class="text-[10px] impact-${item.impact} border border-current px-1.5 rounded">重要度: ${item.impact || '-'}</span></div><div class="text-sm text-slate-200">${item.event || '-'}</div>`;
                         tlContainer.appendChild(div);
                     });
                 }
@@ -1425,11 +1516,12 @@
         function drawRadarChart(scores) {
             const ctx = document.getElementById('radarChart').getContext('2d');
             if (radarChartInstance) radarChartInstance.destroy();
-            const total = scores.growth + scores.value + scores.momentum + scores.safety + scores.macroTailwind;
+            const g = scores.growth || 0, v = scores.value || 0, m = scores.momentum || 0, s = scores.safety || 0, mt = scores.macroTailwind || 0;
+            const total = g + v + m + s + mt;
             let bgColor = 'rgba(168, 85, 247, 0.2)'; let borderColor = 'rgba(168, 85, 247, 1)';
             if (total > 35) { bgColor = 'rgba(16, 185, 129, 0.2)'; borderColor = 'rgba(16, 185, 129, 1)'; } 
             
-            radarChartInstance = new Chart(ctx, { type: 'radar', data: { labels: ['成長性', '割安度', '勢い(モメンタム)', '安全性', 'マクロ恩恵'], datasets: [{ label: 'AI 総合評価', data: [scores.growth, scores.value, scores.momentum, scores.safety, scores.macroTailwind], backgroundColor: bgColor, borderColor: borderColor, borderWidth: 2, pointBackgroundColor: borderColor, pointBorderColor: '#fff' }] }, options: { responsive: true, maintainAspectRatio: false, scales: { r: { angleLines: { color: 'rgba(255, 255, 255, 0.05)' }, grid: { color: 'rgba(255, 255, 255, 0.05)' }, pointLabels: { color: '#94a3b8', font: { family: 'Noto Sans JP', size: 10, weight: 'bold' } }, ticks: { display: false, min: 0, max: 10 } } }, plugins: { legend: { display: false } } } });
+            radarChartInstance = new Chart(ctx, { type: 'radar', data: { labels: ['成長性', '割安度', '勢い(モメンタム)', '安全性', 'マクロ恩恵'], datasets: [{ label: 'AI 総合評価', data: [g, v, m, s, mt], backgroundColor: bgColor, borderColor: borderColor, borderWidth: 2, pointBackgroundColor: borderColor, pointBorderColor: '#fff' }] }, options: { responsive: true, maintainAspectRatio: false, scales: { r: { angleLines: { color: 'rgba(255, 255, 255, 0.05)' }, grid: { color: 'rgba(255, 255, 255, 0.05)' }, pointLabels: { color: '#94a3b8', font: { family: 'Noto Sans JP', size: 10, weight: 'bold' } }, ticks: { display: false, min: 0, max: 10 } } }, plugins: { legend: { display: false } } } });
         }
     </script>
 </body>
