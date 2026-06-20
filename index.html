@@ -2,8 +2,89 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI AUTO-PILOT (Japan Edition v6)</title>
+    
+    <!-- iPhone専用：ホーム画面アプリ化設定 -->
+    <meta name="apple-mobile-web-app-title" content="AUTO-PILOT">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <script>
+        // 画像を用意する手間を省くため、起動時にプログラムで自動的にアイコン画像を生成します
+        (function generateAppleTouchIcon() {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = 180;
+                canvas.height = 180;
+                const ctx = canvas.getContext('2d');
+
+                // 1. 背景のダークネイビー
+                ctx.fillStyle = '#020617';
+                ctx.fillRect(0, 0, 180, 180);
+
+                // 2. 中央の淡いグロー効果
+                const radialGrad = ctx.createRadialGradient(90, 90, 20, 90, 90, 90);
+                radialGrad.addColorStop(0, 'rgba(168, 85, 247, 0.4)');
+                radialGrad.addColorStop(1, 'rgba(2, 6, 23, 0)');
+                ctx.fillStyle = radialGrad;
+                ctx.fillRect(0, 0, 180, 180);
+
+                // 3. メインのグラデーション（青→紫→ピンク）
+                const gradient = ctx.createLinearGradient(30, 30, 150, 150);
+                gradient.addColorStop(0, '#3b82f6');
+                gradient.addColorStop(0.5, '#a855f7');
+                gradient.addColorStop(1, '#ec4899');
+
+                // 4. サイバーな六角形の枠線
+                ctx.lineWidth = 6;
+                ctx.strokeStyle = gradient;
+                ctx.beginPath();
+                for (let i = 0; i < 6; i++) {
+                    const angle = (Math.PI / 3) * i - (Math.PI / 6);
+                    const x = 90 + 70 * Math.cos(angle);
+                    const y = 90 + 70 * Math.sin(angle);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.stroke();
+
+                // 5. 中央の無限大「∞」マーク
+                ctx.fillStyle = gradient;
+                ctx.font = 'bold 75px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('∞', 90, 100); // 少し下に配置
+
+                // 6. 上部の「AI」テキスト
+                ctx.fillStyle = '#f8fafc';
+                ctx.font = 'bold 24px sans-serif';
+                ctx.fillText('AI', 90, 50);
+
+                // Data URI (base64画像) に変換して適用
+                const iconDataUrl = canvas.toDataURL('image/png');
+
+                // apple-touch-iconタグをheadに注入
+                const link = document.createElement('link');
+                link.rel = 'apple-touch-icon';
+                link.sizes = '180x180';
+                link.href = iconDataUrl;
+                document.head.appendChild(link);
+                
+                // ブラウザ用のファビコンとしても適用
+                const favicon = document.createElement('link');
+                favicon.rel = 'icon';
+                favicon.type = 'image/png';
+                favicon.href = iconDataUrl;
+                document.head.appendChild(favicon);
+
+            } catch (e) {
+                console.error("アイコンの自動生成に失敗しました", e);
+            }
+        })();
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -23,6 +104,8 @@
                 radial-gradient(circle at 20% 0%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
                 radial-gradient(circle at 80% 100%, rgba(168, 85, 247, 0.1) 0%, transparent 50%);
             background-attachment: fixed;
+            /* iOSでオーバースクロール時に黒背景を維持するため */
+            overscroll-behavior-y: none;
         }
         .en-font { font-family: 'Outfit', sans-serif; }
         .tech-font { font-family: 'Space Mono', monospace; letter-spacing: -0.05em; }
@@ -71,13 +154,11 @@
 
         input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         
-        /* スクロールバーのスタイル調整 */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #475569; }
         
-        /* 条件テキストエリア用の細いスクロールバー */
         .thin-scrollbar::-webkit-scrollbar { width: 4px; }
         .thin-scrollbar::-webkit-scrollbar-thumb { background: rgba(168, 85, 247, 0.3); }
         .thin-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(168, 85, 247, 0.6); }
@@ -110,6 +191,10 @@
         .rank-badge-3 { text-shadow: 0 0 20px rgba(217, 119, 6, 0.8); }
         
         .favorite-btn.active { color: #facc15; fill: #facc15; }
+        
+        /* iPhoneのセーフエリア（ノッチやホームバー）対策用の余白 */
+        header { padding-top: env(safe-area-inset-top); }
+        main { padding-bottom: env(safe-area-inset-bottom); }
     </style>
 </head>
 <body class="min-h-screen flex flex-col relative">
@@ -196,7 +281,6 @@
                                 <div class="text-sm text-purple-300 mb-2 font-bold flex items-center">
                                     <i data-lucide="history" class="w-4 h-4 mr-1 shrink-0"></i> 前回更新: <span id="saved-scan-date" class="text-white en-font ml-1"></span>
                                 </div>
-                                <!-- 変更点：スクロール可能エリアに -->
                                 <div id="saved-scan-conditions" class="text-[11px] sm:text-xs text-slate-300 leading-relaxed bg-slate-950/60 p-3 sm:p-4 rounded-lg border border-slate-700/50 max-h-24 overflow-y-auto thin-scrollbar break-words whitespace-pre-wrap"></div>
                             </div>
                             <div class="flex flex-col sm:flex-row md:flex-col gap-3 w-full md:w-auto shrink-0 justify-center">
@@ -211,7 +295,6 @@
                     </div>
                 </div>
 
-                <!-- 区切り線 -->
                 <div id="intro-divider" class="w-full max-w-5xl mx-auto hidden mb-8 sm:mb-10 flex items-center">
                     <div class="flex-grow h-px bg-slate-800"></div>
                     <span class="px-4 text-[10px] sm:text-xs font-bold text-slate-600 tracking-widest uppercase">Or start new scan</span>
@@ -225,7 +308,6 @@
                     </h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                         
-                        <!-- ① 市場セグメント -->
                         <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
                             <label class="block text-[11px] text-slate-400 mb-1 font-bold">国内市場セグメント</label>
                             <select id="setting-segment" class="w-full bg-transparent text-white text-sm focus:outline-none en-font cursor-pointer">
@@ -236,7 +318,6 @@
                             </select>
                         </div>
 
-                        <!-- ② 対象期間 -->
                         <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
                             <label class="block text-[11px] text-slate-400 mb-1 font-bold">情報の鮮度（対象期間）</label>
                             <select id="setting-timeframe" class="w-full bg-transparent text-white text-sm focus:outline-none en-font cursor-pointer">
@@ -248,7 +329,6 @@
                             </select>
                         </div>
 
-                        <!-- ③ 1株あたりの株価設定 -->
                         <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
                             <label class="block text-[11px] text-slate-400 mb-1 font-bold">1株あたりの株価(円) ※空欄可</label>
                             <div class="flex items-center space-x-2">
@@ -264,7 +344,6 @@
                             </div>
                         </div>
 
-                        <!-- ④ 優待・配当率 -->
                         <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
                             <label class="block text-[11px] text-slate-400 mb-1 font-bold">目標利回り (%)</label>
                             <div class="flex items-center">
@@ -273,7 +352,6 @@
                             </div>
                         </div>
 
-                        <!-- ⑤ 狙いたい優待ジャンル -->
                         <div class="bg-amber-900/10 p-3 rounded-xl border border-amber-500/30">
                             <label class="block text-[11px] text-amber-400 mb-1 font-bold"><i data-lucide="gift" class="w-3 h-3 inline mr-1 -mt-0.5"></i>優待ジャンル</label>
                             <select id="setting-yutai-genre" class="w-full bg-transparent text-white text-sm focus:outline-none cursor-pointer">
@@ -382,7 +460,7 @@
                 <p id="my-commentary-text" class="text-sm text-slate-300 leading-relaxed sm:pl-12"></p>
             </div>
 
-            <!-- お気に入り（ウォッチリスト）セクション追加 -->
+            <!-- お気に入りセクション -->
             <div class="glass-panel p-6 mt-2">
                 <div class="flex items-center justify-between mb-6">
                     <h3 class="text-xl font-bold text-white flex items-center tracking-wide"><i data-lucide="star" class="w-6 h-6 mr-2 text-yellow-400"></i> お気に入り（ウォッチリスト）</h3>
@@ -396,6 +474,7 @@
                 </div>
             </div>
 
+            <!-- 銘柄追加フォーム -->
             <div class="glass-panel p-5">
                 <h3 class="text-xs font-bold text-slate-400 mb-3 tracking-widest">保有銘柄を追加する</h3>
                 <form id="add-asset-form" class="flex flex-col sm:flex-row gap-3">
@@ -422,7 +501,7 @@
                 <p class="text-sm">上のフォームからあなたが保有している銘柄を登録してください。</p>
             </div>
 
-            <!-- 保存済みカルテセクション -->
+            <!-- 保存済みカルテ -->
             <div class="glass-panel p-6 mt-6">
                 <div class="flex items-center justify-between mb-6">
                     <h3 class="text-xl font-bold text-white flex items-center tracking-wide"><i data-lucide="folder-search" class="w-6 h-6 mr-2 text-purple-400"></i> 保存済み企業カルテ</h3>
@@ -442,7 +521,6 @@
     <template id="ranking-card-template">
         <div class="bg-slate-900/40 border border-slate-700/50 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-5 hover:bg-slate-800/60 transition-all group">
             <div class="flex items-center gap-5 md:w-3/4 relative">
-                <!-- お気に入りボタン -->
                 <button class="favorite-btn absolute -left-2 -top-2 p-2 text-slate-500 hover:text-yellow-400 transition-colors bg-slate-900 rounded-full border border-slate-700 shadow-md z-10" title="お気に入りに追加">
                     <i data-lucide="star" class="w-4 h-4"></i>
                 </button>
@@ -610,7 +688,7 @@
 
                 <div id="modal-content-data" class="hidden flex-col gap-8">
 
-                    <!-- Yahoo Financeへの大きなリンクボタン -->
+                    <!-- Yahoo Financeリンク -->
                     <div class="mb-2">
                         <a id="modal-yahoo-link" href="#" target="_blank" class="w-full flex flex-col md:flex-row items-center justify-center py-5 bg-gradient-to-r from-blue-900/40 to-indigo-900/40 hover:from-blue-800/60 hover:to-indigo-800/60 border border-blue-500/50 rounded-2xl text-blue-300 font-bold transition-all shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:shadow-[0_0_25px_rgba(59,130,246,0.5)] group">
                             <div class="flex items-center text-lg md:text-xl"><i data-lucide="external-link" class="w-6 h-6 mr-2 text-blue-400 group-hover:scale-110 transition-transform"></i> <span id="modal-yahoo-text">Yahoo!ファイナンスで最新チャートと詳細を見る</span></div>
@@ -692,7 +770,7 @@
 
     <!-- Scripts -->
     <script>
-        // --- 内部ロギングシステム (エラー調査用) ---
+        // --- 内部ロギングシステム ---
         const appLogs = [];
 
         function addLog(level, message, details = "") {
@@ -702,7 +780,6 @@
             
             appLogs.push({ time: timeStr, level, message, details: detailStr });
             
-            // 開発者ツールにも出力しておく
             if(level === 'ERROR' || level === 'WARN') {
                 console.error(`[${level}] ${message}`, details);
             } else {
@@ -710,13 +787,11 @@
             }
         }
 
-        // ログをCSV化してダウンロードさせる機能
         function downloadLogsCSV() {
-            let csv = '\uFEFF'; // UTF-8のBOM (Excelで文字化けさせないため)
-            csv += '"Time","Level","Message","Details"\n'; // ヘッダー
+            let csv = '\uFEFF'; 
+            csv += '"Time","Level","Message","Details"\n';
             
             appLogs.forEach(log => {
-                // ダブルクォートをエスケープ
                 const safeMsg = (log.message || "").replace(/"/g, '""');
                 const safeDetails = (log.details || "").replace(/"/g, '""');
                 csv += `"${log.time}","${log.level}","${safeMsg}","${safeDetails}"\n`;
@@ -735,7 +810,6 @@
             addLog("INFO", "エラーログのCSVダウンロードを実行しました");
         }
 
-        // CSVダウンロードボタンのHTMLを生成するヘルパー関数
         function getLogButtonHTML() {
             return `
                 <div class="mt-4 w-full flex justify-center">
@@ -747,7 +821,7 @@
             `;
         }
 
-        // --- キャッシュシステム (ニュース検索の節約用) ---
+        // --- キャッシュシステム ---
         const CacheSystem = {
             set: (key, data) => {
                 const item = { timestamp: Date.now(), data: data };
@@ -765,11 +839,10 @@
             }
         };
 
-        // --- 設定値のグローバル保存用 ---
         window.appSettings = null;
         const sessionReportCache = new Map();
 
-        // --- 認証（パスワード）システム ---
+        // --- 認証 ---
         let apiKey = localStorage.getItem('autopilot_api_key') || "";
 
         function checkAuth() {
@@ -805,7 +878,7 @@
             checkAuth();
             renderSavedScan();
             renderSavedReports();
-            renderFavorites(); // お気に入りの初期描画
+            renderFavorites(); 
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
             } else {
@@ -848,7 +921,7 @@
             if (tabId === 'tab-myportfolio') {
                 renderMyPortfolio();
                 renderSavedReports();
-                renderFavorites(); // タブ切り替え時にお気に入りも更新
+                renderFavorites(); 
             } else if (tabId === 'tab-discover') {
                 renderSavedScan();
             }
@@ -869,14 +942,13 @@
                 const data = await response.json();
                 const availableModels = data.models.map(m => m.name.replace('models/', ''));
 
-                // プロモデルでのクォータ制限(429エラー)を回避するため、無料枠が広いFlashモデルを最優先に変更
                 const preferredModels = [
-                    'gemini-2.5-flash-preview-09-2025', // Canvas等プレビュー環境用
+                    'gemini-2.5-flash-preview-09-2025', 
                     'gemini-2.5-flash',
                     'gemini-1.5-flash-latest',
                     'gemini-1.5-flash',
-                    'gemini-2.5-pro', // 予備
-                    'gemini-1.5-pro'  // 予備
+                    'gemini-2.5-pro',
+                    'gemini-1.5-pro' 
                 ];
 
                 for (const preferred of preferredModels) {
@@ -902,7 +974,6 @@
             const model = await getBestModel();
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-            // リクエスト内容をログに記録 (長すぎるためtoolsやconfigは省略して記録)
             const logPayload = { ...payload };
             if(logPayload.contents) logPayload.contentsPreview = logPayload.contents[0].parts[0].text.substring(0, 100) + '...';
             addLog("INFO", "Gemini API リクエスト準備完了", { model: model, payloadPreview: logPayload.contentsPreview });
@@ -998,32 +1069,18 @@
 
         function safeSetText(id, text) { const el = document.getElementById(id); if (el) el.textContent = text || "---"; }
 
-        // --- 確実なJSON抽出関数 ---
         function extractJSON(str) {
-            try {
-                return JSON.parse(str);
-            } catch(e) {}
-            
-            const startObj = str.indexOf('{');
-            const startArr = str.indexOf('[');
-            const endObj = str.lastIndexOf('}');
-            const endArr = str.lastIndexOf(']');
-            
-            let start = -1;
-            let end = -1;
-            
+            try { return JSON.parse(str); } catch(e) {}
+            const startObj = str.indexOf('{'); const startArr = str.indexOf('[');
+            const endObj = str.lastIndexOf('}'); const endArr = str.lastIndexOf(']');
+            let start = -1; let end = -1;
             if (startObj !== -1 && startArr !== -1) { start = Math.min(startObj, startArr); } 
             else { start = Math.max(startObj, startArr); }
-            
             if (endObj !== -1 && endArr !== -1) { end = Math.max(endObj, endArr); } 
             else { end = Math.max(endObj, endArr); }
-            
             if (start !== -1 && end !== -1 && end >= start) {
-                try {
-                    return JSON.parse(str.substring(start, end + 1));
-                } catch(e) {
-                    addLog("ERROR", "JSON抽出パース失敗", { text: str.substring(start, end + 1), error: e.message });
-                }
+                try { return JSON.parse(str.substring(start, end + 1)); } 
+                catch(e) { addLog("ERROR", "JSON抽出パース失敗", { text: str.substring(start, end + 1), error: e.message }); }
             }
             throw new Error("AIがJSONフォーマットで回答しませんでした。再度お試しください。");
         }
@@ -1047,12 +1104,10 @@
             const index = favorites.findIndex(f => f.ticker === ticker);
             
             if (index !== -1) {
-                // 削除
                 favorites.splice(index, 1);
                 if(buttonElement) buttonElement.classList.remove('active');
                 addLog("INFO", "お気に入りから削除しました", ticker);
             } else {
-                // 追加
                 favorites.push({ ticker, companyName, addedAt: Date.now() });
                 if(buttonElement) buttonElement.classList.add('active');
                 addLog("INFO", "お気に入りに追加しました", ticker);
@@ -1061,13 +1116,9 @@
             saveFavorites(favorites);
             renderFavorites();
             
-            // 現在の画面にある同じティッカーのお気に入りボタンも同期する
             document.querySelectorAll(`.fav-btn-${ticker}`).forEach(btn => {
-                if (index !== -1) {
-                    btn.classList.remove('active');
-                } else {
-                    btn.classList.add('active');
-                }
+                if (index !== -1) btn.classList.remove('active');
+                else btn.classList.add('active');
             });
         }
 
@@ -1086,7 +1137,6 @@
             
             emptyMsg.classList.add('hidden');
 
-            // 新しく追加された順に並び替え
             favorites.sort((a, b) => b.addedAt - a.addedAt).forEach(item => {
                 const template = document.getElementById('favorite-card-template');
                 if (!template) return;
@@ -1095,25 +1145,19 @@
                 clone.querySelector('.ticker-text').textContent = item.ticker;
                 clone.querySelector('.company-text').textContent = item.companyName || '企業名不明';
                 
-                // カード全体をクリックでカルテを開く
                 const card = clone.querySelector('div');
                 card.addEventListener('click', (e) => {
-                    // 削除ボタンをクリックした場合はカルテを開かない
-                    if (!e.target.closest('.remove-fav-btn')) {
-                        openDeepScanModal(item.ticker, item.companyName, false);
-                    }
+                    if (!e.target.closest('.remove-fav-btn')) openDeepScanModal(item.ticker, item.companyName, false);
                 });
 
-                // 削除ボタン
                 const removeBtn = clone.querySelector('.remove-fav-btn');
                 removeBtn.addEventListener('click', (e) => {
-                    e.stopPropagation(); // イベントのバブリングを防ぐ
+                    e.stopPropagation(); 
                     toggleFavorite(item.ticker, item.companyName, null);
                 });
 
                 list.appendChild(clone);
             });
-            
             lucide.createIcons();
         }
 
@@ -1181,12 +1225,11 @@
                 }
             }
 
-            // 優待専用ボタンから呼ばれた場合の強制オーバーライド
             if (isYutaiOnly) {
                 const currentMonth = new Date().getMonth() + 1;
                 const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
                 conditionText = `条件：直近（${currentMonth}月や${nextMonth}月など）で権利確定する、個人投資家に人気の株主優待ランキング上位銘柄を検索してください。\n必ず優待の具体的な内容（例：クオカード1000円分など）も調査して出力に含めてください。`;
-                diffInstruction = ''; // 優待ボタンは差分更新を無視
+                diffInstruction = ''; 
             }
 
             document.getElementById('intro-panel').style.display = 'none';
@@ -1205,7 +1248,6 @@
             loadingPanel.classList.add('flex');
 
             try {
-                // yutaiDetail を追加したフォーマット
                 const jsonFormat = `{
                     "marketSignal": { "status": "GREEN/YELLOW/RED", "reason": "string" },
                     "sectorHeatmap": [{ "sectorName": "string", "heat": "HOT/WARM/COLD", "reason": "string" }],
@@ -1246,7 +1288,7 @@
                     errorMsg.innerHTML = `APIの利用枠が上限に達しました。<br><span class="text-sm text-slate-300 mt-2 block">Google AI Studioでクレジット残高や支払い設定をご確認ください。</span><br><a href="https://aistudio.google.com/app/billing" target="_blank" class="mt-4 px-4 py-2 bg-blue-900/50 border border-blue-500/50 rounded-lg text-blue-300 font-bold text-sm hover:bg-blue-800 transition-colors inline-flex items-center"><i data-lucide="external-link" class="w-4 h-4 mr-2"></i>AI Studioを開く</a>`;
                 } else {
                     errorMsg.innerHTML = `処理中にエラーが発生しました:<br><span class="text-[11px] break-all text-red-400 font-mono mt-2 block">${error.message}</span>`;
-                    errorMsg.innerHTML += getLogButtonHTML(); // ログダウンロードボタンを追加
+                    errorMsg.innerHTML += getLogButtonHTML(); 
                 }
                 errorMsg.classList.remove('hidden');
                 document.getElementById('intro-panel').style.display = 'block';
@@ -1323,23 +1365,17 @@
                     safeSetClone('.company-text', item.companyName);
                     safeSetClone('.reason-text', item.reason);
 
-                    // 優待情報がある場合は表示
                     const yutaiEl = clone.querySelector('.yutai-detail-text');
                     if (yutaiEl && item.yutaiDetail && item.yutaiDetail !== "なし" && item.yutaiDetail !== "") {
                         yutaiEl.classList.remove('hidden');
                         yutaiEl.querySelector('.yutai-content').textContent = item.yutaiDetail;
                     }
 
-                    // お気に入りボタンの処理
                     const favBtn = clone.querySelector('.favorite-btn');
                     if (favBtn) {
-                        favBtn.classList.add(`fav-btn-${item.ticker}`); // 同期用のクラス
-                        if (isFavorite(item.ticker)) {
-                            favBtn.classList.add('active');
-                        }
-                        favBtn.addEventListener('click', () => {
-                            toggleFavorite(item.ticker, item.companyName, favBtn);
-                        });
+                        favBtn.classList.add(`fav-btn-${item.ticker}`); 
+                        if (isFavorite(item.ticker)) favBtn.classList.add('active');
+                        favBtn.addEventListener('click', () => toggleFavorite(item.ticker, item.companyName, favBtn));
                     }
 
                     const deepBtn = clone.querySelector('.deep-scan-btn');
@@ -1358,9 +1394,6 @@
             setTimeout(() => { resContainer.style.opacity = '1'; lucide.createIcons(); }, 100);
         }
 
-        /* =========================================================
-           機能2: マイ・ポートフォリオ
-        ========================================================= */
         function getMyAssets() { return JSON.parse(localStorage.getItem('my_assets_v1') || '[]'); }
         function saveMyAssets(assets) { localStorage.setItem('my_assets_v1', JSON.stringify(assets)); }
 
@@ -1594,20 +1627,14 @@
             document.getElementById('modal-content-data').classList.add('hidden');
             const errEl = document.getElementById('modal-error-message'); if(errEl) errEl.classList.add('hidden');
             
-            // モーダル内のお気に入りボタンの状態を同期
             const modalFavBtn = document.getElementById('modal-fav-btn');
             if (modalFavBtn) {
-                // 古いイベントリスナーを削除するためにクローンして置き換える
                 const newBtn = modalFavBtn.cloneNode(true);
                 modalFavBtn.parentNode.replaceChild(newBtn, modalFavBtn);
                 
                 newBtn.className = `favorite-btn fav-btn-${ticker} text-slate-500 hover:text-yellow-400 transition-colors p-1`;
-                if (isFavorite(ticker)) {
-                    newBtn.classList.add('active');
-                }
-                newBtn.addEventListener('click', () => {
-                    toggleFavorite(ticker, companyName, newBtn);
-                });
+                if (isFavorite(ticker)) newBtn.classList.add('active');
+                newBtn.addEventListener('click', () => toggleFavorite(ticker, companyName, newBtn));
             }
 
             modal.classList.remove('hidden'); setTimeout(() => modal.classList.add('opacity-100'), 10);
@@ -1722,7 +1749,7 @@
             if(badge && data.finalVerdict) {
                 const decision = data.finalVerdict.decision || "不明";
                 badge.textContent = decision;
-                badge.className = 'px-5 py-2 rounded font-black text-sm border tracking-widest'; 
+                badge.className = 'px-5 py-2 rounded-full font-black text-sm shadow-lg border'; 
                 if (decision.includes('BUY') || decision.includes('買')) badge.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/50');
                 else if (decision.includes('HOLD') || decision.includes('待')) badge.classList.add('bg-slate-500/20', 'text-slate-300', 'border-slate-500/50');
                 else badge.classList.add('bg-red-500/20', 'text-red-400', 'border-red-500/50');
